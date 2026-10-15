@@ -1,0 +1,4 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" role="img" aria-label="Upload">
+  <path d="M32 42V10M20 22l12-12 12 12"/>
+  <path d="M12 38v14a4 4 0 0 0 4 4h32a4 4 0 0 0 4-4V38"/>
+</svg>

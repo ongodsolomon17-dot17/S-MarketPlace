@@ -1,0 +1,29 @@
+# Render Blueprint for the S-Market Place API.
+# Render reads this file when you create a "Blueprint" from your GitHub repo and asks you to
+# fill in every variable marked `sync: false`. Secrets are never stored in the repo.
+services:
+  - type: web
+    name: s-market-place-api
+    runtime: python
+    rootDir: backend
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app --workers 1 --threads 4 --timeout 60
+    healthCheckPath: /api/health
+    envVars:
+      - key: SECRET_KEY            # signs login tokens; Render generates a strong random value for you
+        generateValue: true
+      - key: DATABASE_URL          # Neon connection string
+        sync: false
+      - key: FRONTEND_ORIGIN       # your exact Vercel URL, e.g. https://s-market-place.vercel.app
+        sync: false
+      - key: PAYSTACK_SECRET_KEY   # Paystack dashboard > Settings > API Keys (sk_test_... or sk_live_...)
+        sync: false
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: ORDER_HOLD_MINUTES    # how long unpaid orders keep their items reserved
+        value: "30"
