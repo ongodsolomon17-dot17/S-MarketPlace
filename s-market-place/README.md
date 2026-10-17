@@ -1,6 +1,7 @@
 # S-Market Place
 
-A multi-vendor perfume marketplace. Traders open shops and list perfumes, buyers check out and pay with Paystack, and visitors can browse without an account.
+A multi-trader marketplace where traders sell **any kind of product** and shoppers browse a personalised
+"For you" feed. Visitors can browse without an account; buyers pay with Paystack; traders manage their own shop.
 
 | Part | Runs on | Folder |
 |---|---|---|
@@ -10,43 +11,76 @@ A multi-vendor perfume marketplace. Traders open shops and list perfumes, buyers
 | Product/profile images | Cloudinary | — |
 | Payments (₦) | Paystack | — |
 
+**Repo layout:** `backend/`, `frontend/`, `render.yaml` and this README sit at the **top level** of the repository
+(Render's *Root Directory* is `backend`, Vercel's is `frontend`).
+
 ## What it does
 
-- Browse and search traders and perfumes as a guest (24 per page, "Load more"); the cart lives in the browser.
-- Buyer and trader accounts, hashed passwords, 14-day signed login tokens, change password (signs out other devices), rate-limited login/registration.
-- Traders: shop profile, add/edit/delete products, exact stock counts, image upload, **orders to fulfil** with the buyer's delivery details, and a Processing/Shipped/Delivered status for each line.
-- Checkout: buyer enters delivery details, stock is reserved inside a database transaction, and the buyer is sent to Paystack.
-- Payments are confirmed **server-side** (Paystack verify call + signed webhook). Underpayments are rejected.
-- Unpaid orders are held for 30 minutes (`ORDER_HOLD_MINUTES`), then cancelled and the stock goes back on sale. Buyers can also pay again or cancel from **My orders**.
-- A payment that arrives after the hold expired re-takes the stock if it is still available; otherwise the order is flagged **Refund needed**.
-- Deleting a product that already has orders hides it instead of crashing, so order history stays intact.
+- **"For you" home feed** — a random mix that adapts to what each person looks at, adds to the cart, taps or buys (details below).
+- **Any category** — traders pick from the category list or type a new one; near-duplicates ("shoe"/"Shoes") are merged automatically.
+- **Product cards show 2 lines of description.** Tapping the picture, name or description opens the full product as one block, with other items underneath.
+- **Search** — several words must all match a name, description, category or shop; name matches rank first.
+- **Traders** land on the **add-item** screen; profile editing lives behind a **Settings** button. They also see paid orders with delivery details and can mark them Processing / Shipped / Delivered.
+- **Buyers** check out with delivery details and pay with Paystack; payments are confirmed server-side (verify call + signed webhook). Unpaid orders are held for 30 minutes and then released; a late payment re-takes the stock or is flagged "Refund needed".
+- Hashed passwords, 14-day signed tokens, change-password signs out other devices, rate-limited login/registration.
 
-## Environment variables (set these on Render)
+## How the "For you" feed works
+
+1. The site remembers what a person does (`interactions` table): open a product = 1 point, tap a category = 2, add to cart = 4, buy = 6.
+   Guests are recognised by a random id stored in their own browser; signed-in users by their account.
+2. Points fade with time (halving every 14 days); history older than 90 days is deleted.
+3. The feed ranks a pool of products (newest + a random sample + the person's favourite categories) by
+   *category liking + shop liking + freshness + popularity + a little randomness*.
+   Newcomers get a mostly-random, newness-biased mix. No trader fills more than 2 slots in a row.
+4. The ranked list is cached for 15 minutes per person and `seed`, so "Load more" never repeats or skips items. **↻ Refresh** uses a new seed.
+
+The code is in `backend/feed.py` (heavily commented); the weights at the top of that file are easy to tune.
+
+## Code map
+
+```
+backend/
+  app.py              entry point (Gunicorn runs app:app) – builds the Flask app
+  config.py           settings from environment variables (+ start-up safety checks)
+  database.py         Neon connection, tables and automatic upgrades
+  auth.py             login tokens, "who is this?", guest visitor id
+  categories.py       category cleaning, duplicate detection, pick-or-create
+  feed.py             the "For you" recommendation engine
+  order_service.py    cancel / expire / settle orders
+  payment_service.py  Paystack calls and webhook signature check
+  maintenance.py      periodic housekeeping
+  routes/             accounts.py · shop.py · orders.py · seller.py
+frontend/
+  index.html          all screens
+  css/style.css
+  js/                 config → utils → api → navigation → cart → products → auth → seller → orders → main
+```
+
+## Environment variables (set on Render)
 
 | Variable | Value |
 |---|---|
-| `DATABASE_URL` | Neon connection string |
-| `SECRET_KEY` | Generated for you by `render.yaml` (or any random 32+ characters) |
-| `FRONTEND_ORIGIN` | Your exact Vercel URL, e.g. `https://s-market-place.vercel.app` (comma-separate extra origins; no `*`) |
-| `PAYSTACK_SECRET_KEY` | Paystack secret key (`sk_test_…` for testing, `sk_live_…` when live) |
+| `DATABASE_URL` | Neon connection string (just the `postgresql://…` part) |
+| `SECRET_KEY` | A random string of 32+ characters (Render can generate it) |
+| `FRONTEND_ORIGIN` | Your exact Vercel URL, e.g. `https://s-marketplace-s-market-place.vercel.app` (no trailing slash, no `*`) |
+| `PAYSTACK_SECRET_KEY` | `sk_test_…` while testing, `sk_live_…` when live |
 | `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` | From the Cloudinary dashboard |
 | `ORDER_HOLD_MINUTES` | Optional, default 30 |
 
-The API refuses to start without `SECRET_KEY` and `FRONTEND_ORIGIN`, so a forgotten variable shows up in the Render logs instead of leaving the site insecure.
+The API refuses to start without `SECRET_KEY` and `FRONTEND_ORIGIN`, so a forgotten variable shows up in the Render logs.
 
-## Setup, step by step
+## Setup
 
-1. **Neon** — create a project at neon.tech and copy the connection string (Dashboard → Connect).
-2. **Cloudinary** — create an account and copy the cloud name, API key and API secret from the dashboard.
-3. **Paystack** — create an account at paystack.com and copy the **test** secret key (Settings → API Keys & Webhooks).
-4. **GitHub** — push this folder as a repository (the `.gitignore` already keeps secrets and `venv` out).
-5. **Vercel (first)** — Add New → Project → import the repo → set **Root Directory** to `frontend` → Deploy. Note the URL it gives you.
-6. **Render** — New → Blueprint → pick the repo. Render reads `render.yaml` and asks for each variable above; paste the values (use the Vercel URL for `FRONTEND_ORIGIN`).
-7. **Check the API** — open `https://YOUR-SERVICE.onrender.com/api/health`. You want `status: ok`, `database: connected`, `payments: configured`.
-8. **Point the site at the API** — if your Render URL differs from the one in `frontend/js/config.js`, edit that file, commit and push; Vercel redeploys on its own.
-9. **Paystack webhook** — Paystack → Settings → API Keys & Webhooks → set the webhook URL to `https://YOUR-SERVICE.onrender.com/api/paystack/webhook` and save.
-10. **Test end to end** — create a trader, add a product, then (in a private window) create a buyer, add it to the cart, check out and pay with a Paystack test card. The order should show **Paid** under My orders and appear under the trader's **Orders to fulfil**.
-11. **Going live** — complete Paystack's business verification, replace `PAYSTACK_SECRET_KEY` on Render with the live key and set the live webhook URL.
+1. **Neon** – create a project, copy the connection string. **Cloudinary** – note cloud name, API key and secret. **Paystack** – copy the *test* secret key.
+2. **GitHub** – the repository root must contain `backend/`, `frontend/` and `render.yaml`.
+3. **Vercel** – import the repo, **Root Directory = `frontend`**, deploy. Note the permanent domain (Project → Domains).
+4. **Render** – New → Web Service (or Blueprint), **Root Directory = `backend`**, Build `pip install -r requirements.txt`,
+   Start `gunicorn app:app --workers 1 --threads 4 --timeout 60`, then add the environment variables above.
+5. Open `https://YOUR-SERVICE.onrender.com/api/health` → expect `status: ok`, `database: connected`, `payments: configured`.
+6. Make sure `frontend/js/config.js` has your Render URL, commit and push (Vercel redeploys).
+7. In Paystack, set the webhook URL to `https://YOUR-SERVICE.onrender.com/api/paystack/webhook`.
+8. Test: create a trader and add a product (pick or type a category) → in a private window create a buyer, check out and pay with a Paystack test card.
+9. Going live: finish Paystack business verification, swap in the `sk_live_` key and the live webhook.
 
 ## Local testing
 
@@ -54,20 +88,16 @@ The API refuses to start without `SECRET_KEY` and `FRONTEND_ORIGIN`, so a forgot
 cd backend
 python -m venv .venv && source .venv/bin/activate      # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
-cp .env.example .env    # then export the variables (or set them in your shell)
-python app.py           # API on http://127.0.0.1:5000
+# set the variables from .env.example in your shell (FLASK_DEBUG=1 relaxes the production checks)
+python app.py                                           # API on http://127.0.0.1:5000
 
 cd ../frontend
-python -m http.server 8000   # site on http://localhost:8000
+python -m http.server 8000                              # site on http://localhost:8000
 ```
-
-`FLASK_DEBUG=1` relaxes the secret/origin checks for local use only. `frontend/js/config.js` automatically uses the local API on localhost.
 
 ## Not built yet
 
-- **Paying traders out.** All payments go to your one Paystack account. Paystack split payments/subaccounts would pay traders automatically; until then payouts are manual.
-- Refund button (refunds are done in the Paystack dashboard; paid orders can't be cancelled in the app).
-- Password reset and email verification (need an email service), order emails/notifications.
-- Reviews and ratings, product detail pages, multiple images per product, admin moderation, real URL routing.
-- The login token lives in browser local storage; the rate limiter is in-memory per server process.
+- Paying traders out automatically (all money lands in your one Paystack account; Paystack split payments could automate it).
+- Refund button, password reset / email verification, order emails, reviews, admin moderation, real URL routing (the browser Back button leaves the site; use the in-page Back button).
+- The login token is kept in browser local storage; rate limits and the feed cache live in memory per server process.
 - Render's free plan sleeps when idle, so the first request after a quiet period can take up to a minute.
