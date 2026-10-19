@@ -40,7 +40,9 @@ async function getCartSummary() {
   for (const product of products) {
     found.add(String(product.id));
     const wanted = Number(cart[product.id] || 0);
-    const quantity = Math.min(wanted, Number(product.stock));
+    // stock is null when the trader hides the quantity: the server checks the real limit at checkout.
+    const limit = !product.available ? 0 : (product.stock === null ? Infinity : Number(product.stock));
+    const quantity = Math.min(wanted, limit);
     if (quantity !== wanted) {
       changed = true;
       if (quantity > 0) cart[product.id] = quantity; else delete cart[product.id];
@@ -71,10 +73,10 @@ async function refreshCartCount() {
 async function addToCart(id) {
   try {
     const [product] = await fetchProductsByIds([id]);
-    if (!product || product.stock < 1) throw new Error("Sorry, this item is sold out.");
+    if (!product || !product.available) throw new Error("Sorry, this item is sold out.");
     const cart = getGuestCart();
     const next = Number(cart[id] || 0) + 1;
-    if (next > Number(product.stock)) throw new Error(`Only ${product.stock} item(s) are currently in stock.`);
+    if (product.stock !== null && next > Number(product.stock)) throw new Error(`Only ${product.stock} item(s) are currently in stock.`);
     cart[id] = next;
     saveGuestCart(cart);
     updateCartCount((await getCartSummary()).count);
@@ -93,7 +95,8 @@ async function changeCartQuantity(id, quantity) {
       delete cart[id];
     } else {
       const [product] = await fetchProductsByIds([id]);
-      if (!product || quantity > product.stock) throw new Error(`Only ${product?.stock ?? 0} item(s) are in stock.`);
+      if (!product || !product.available) throw new Error("Sorry, this item is sold out.");
+      if (product.stock !== null && quantity > product.stock) throw new Error(`Only ${product.stock} item(s) are in stock.`);
       cart[id] = quantity;
     }
     saveGuestCart(cart);

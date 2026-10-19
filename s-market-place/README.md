@@ -20,7 +20,10 @@ A multi-trader marketplace where traders sell **any kind of product** and shoppe
 - **Any category** — traders pick from the category list or type a new one; near-duplicates ("shoe"/"Shoes") are merged automatically.
 - **Product cards show 2 lines of description.** Tapping the picture, name or description opens the full product as one block, with other items underneath.
 - **Search** — several words must all match a name, description, category or shop; name matches rank first.
-- **Traders** land on the **add-item** screen; profile editing lives behind a **Settings** button. They also see paid orders with delivery details and can mark them Processing / Shipped / Delivered.
+- **Traders** get a tidy screen: an **+ Add product** button (the form opens in a pop-up), a slim product list (name, price, quantity, **Edit**) and slim order rows (buyer, condition, **Save update**). Profile editing lives behind a **Settings** button.
+- **Edit everything** about a product in the same pop-up, including a **price slash** (original price + % off → "~~₦200,000~~ ₦140,000 · 30% OFF") and a choice to show **how many are left** or just **"In stock"**.
+- **Pause / resume** a product (it is hidden from shoppers but kept), and **delete** with a 30-day countdown: deleted products wait in "Recently deleted" (restorable), then are erased for good together with their Cloudinary picture.
+- **Fast Finger** (bottom menu) — traders post limited-time price-slash deals with a live countdown. Ended or sold deals disappear 24 hours later. See `CHANGES.md`.
 - **Buyers** check out with delivery details and pay with Paystack; payments are confirmed server-side (verify call + signed webhook). Unpaid orders are held for 30 minutes and then released; a late payment re-takes the stock or is flagged "Refund needed".
 - Hashed passwords, 14-day signed tokens, change-password signs out other devices, rate-limited login/registration.
 
@@ -49,11 +52,14 @@ backend/
   order_service.py    cancel / expire / settle orders
   payment_service.py  Paystack calls and webhook signature check
   maintenance.py      periodic housekeeping
-  routes/             accounts.py · shop.py · orders.py · seller.py
+  deal_service.py     deletes finished Fast Finger deals after 24 hours
+  product_service.py  erases products 30 days after they were deleted
+  image_service.py    deletes unused pictures from Cloudinary (queue + retries)
+  routes/             accounts.py · shop.py · orders.py · seller.py · deals.py
 frontend/
   index.html          all screens
   css/style.css
-  js/                 config → utils → api → navigation → cart → products → auth → seller → orders → main
+  js/                 config → utils → api → navigation → cart → products → deals → auth → seller → orders → main
 ```
 
 ## Environment variables (set on Render)

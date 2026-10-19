@@ -13,12 +13,39 @@ def iso(value):
     return value.isoformat() if isinstance(value, datetime) else value
 
 
+def discount_percent(original_price, price):
+    """Whole-number percent taken off, e.g. 200000 -> 140000 gives 30. None when there is no price slash."""
+    if original_price is None:
+        return None
+    original, current = Decimal(str(original_price)), Decimal(str(price))
+    if original <= 0 or current >= original:
+        return None
+    return int(((original - current) / original * 100).quantize(Decimal('1'), rounding=ROUND_HALF_UP))
+
+
 def product_dict(row):
-    """A product row shaped for the frontend (numbers and dates made JSON-friendly)."""
+    """A product row shaped for the frontend (numbers and dates made JSON-friendly).
+
+    This is the FULL view, with the exact stock. Use it only for the trader who owns the product.
+    """
     product = dict(row)
+    product['discount_percent'] = discount_percent(product.get('original_price'), product['price'])
     product['price'] = float(product['price'])
+    if product.get('original_price') is not None:
+        product['original_price'] = float(product['original_price'])
     product['available'] = int(product['stock']) > 0
-    product['created_at'] = iso(product.get('created_at'))
+    for key in ('created_at', 'deleted_at', 'purged_at'):
+        product[key] = iso(product.get(key))
+    return product
+
+
+def public_product_dict(row):
+    """The version shoppers get. If the trader chose to show only \"In stock\", the exact quantity is hidden."""
+    product = product_dict(row)
+    if not product.get('show_quantity', True):
+        product['stock'] = None
+    for private in ('is_paused', 'deleted_at', 'purged_at'):     # the trader's own bookkeeping, not for shoppers
+        product.pop(private, None)
     return product
 
 

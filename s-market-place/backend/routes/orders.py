@@ -77,12 +77,15 @@ def checkout():
             total, locked = Decimal('0.00'), []
             for product_id in sorted(quantities):    # always lock in the same order so two checkouts can't deadlock
                 quantity = quantities[product_id]
-                row = con.execute('SELECT id,name,price,stock FROM products WHERE id=%s AND is_active FOR UPDATE',
+                row = con.execute('SELECT id,name,price,stock,show_quantity FROM products WHERE id=%s AND is_active FOR UPDATE',
                                   (product_id,)).fetchone()
                 if not row:
                     raise CheckoutError('A product in your cart is no longer available.')
                 if row['stock'] < quantity:
-                    raise CheckoutError(f"Only {row['stock']} of {row['name']} remain in stock.")
+                    if row['show_quantity']:
+                        raise CheckoutError(f"Only {row['stock']} of {row['name']} remain in stock.")
+                    # The trader chose to show just "In stock", so don't reveal how many are left.
+                    raise CheckoutError(f"There isn't enough stock of {row['name']} for that quantity. Please lower it.")
                 total += row['price'] * quantity
                 locked.append((row, quantity))
 

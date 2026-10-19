@@ -65,7 +65,35 @@ SCHEMA = [
         kind VARCHAR(12) NOT NULL CHECK(kind IN ('view','cart','purchase','category')),
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())""",
 
+    # ---- Fast Finger: time-limited price-slash deals posted by traders ----------------------------
+    # status is worked out when read: 'sold' (trader marked it), 'ended' (countdown reached zero) or 'live'.
+    # Finished deals are deleted by the system 24 hours after they ended or were marked sold.
+    """CREATE TABLE IF NOT EXISTS flash_deals (
+        id BIGSERIAL PRIMARY KEY,
+        trader_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        title VARCHAR(120) NOT NULL,
+        description TEXT NOT NULL DEFAULT '',
+        image TEXT NOT NULL DEFAULT '',
+        original_price NUMERIC(12,2) NOT NULL CHECK(original_price > 0),
+        price NUMERIC(12,2) NOT NULL CHECK(price >= 0),
+        ends_at TIMESTAMPTZ NOT NULL,
+        sold_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())""",
+
+    # ---- pictures waiting to be deleted from Cloudinary (see image_service.py) --------------------
+    """CREATE TABLE IF NOT EXISTS image_cleanup (
+        id BIGSERIAL PRIMARY KEY,
+        url TEXT NOT NULL UNIQUE,
+        public_id VARCHAR(200) NOT NULL,
+        attempts INTEGER NOT NULL DEFAULT 0,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())""",
+
     # ---- upgrades for databases created by earlier versions --------------------------------------
+    "ALTER TABLE products ADD COLUMN IF NOT EXISTS original_price NUMERIC(12,2)",            # the "was" price (price slash)
+    "ALTER TABLE products ADD COLUMN IF NOT EXISTS show_quantity BOOLEAN NOT NULL DEFAULT TRUE",  # show "5 left" or just "In stock"
+    "ALTER TABLE products ADD COLUMN IF NOT EXISTS is_paused BOOLEAN NOT NULL DEFAULT FALSE",      # trader paused it (can resume)
+    "ALTER TABLE products ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ",                         # trader deleted it (30 days to restore)
+    "ALTER TABLE products ADD COLUMN IF NOT EXISTS purged_at TIMESTAMPTZ",                          # set when only an empty shell is left
     "ALTER TABLE products ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT TRUE",
     "ALTER TABLE products DROP CONSTRAINT IF EXISTS products_category_check",         # categories are no longer a fixed list
     "ALTER TABLE products ALTER COLUMN category TYPE VARCHAR(60)",
@@ -81,6 +109,9 @@ SCHEMA = [
     "ALTER TABLE orders ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ",
     "ALTER TABLE order_items ADD COLUMN IF NOT EXISTS product_name VARCHAR(120) NOT NULL DEFAULT ''",
     "ALTER TABLE order_items ADD COLUMN IF NOT EXISTS fulfilment_status VARCHAR(20) NOT NULL DEFAULT 'Pending'",
+    # Products hidden by the older "delete" (is_active false, not paused) start their 30 days now.
+    # This must come AFTER the is_active / is_paused / deleted_at columns above exist.
+    "UPDATE products SET deleted_at = NOW() WHERE NOT is_active AND NOT is_paused AND deleted_at IS NULL",
 
     # ---- indexes (make the common lookups fast) --------------------------------------------------
     "CREATE INDEX IF NOT EXISTS idx_products_trader ON products(trader_id)",
@@ -92,6 +123,9 @@ SCHEMA = [
     "CREATE INDEX IF NOT EXISTS idx_interactions_user ON interactions(user_id, created_at)",
     "CREATE INDEX IF NOT EXISTS idx_interactions_visitor ON interactions(visitor_id, created_at)",
     "CREATE INDEX IF NOT EXISTS idx_interactions_product ON interactions(product_id)",
+    "CREATE INDEX IF NOT EXISTS idx_products_deleted ON products(deleted_at) WHERE deleted_at IS NOT NULL",
+    "CREATE INDEX IF NOT EXISTS idx_flash_deals_trader ON flash_deals(trader_id)",
+    "CREATE INDEX IF NOT EXISTS idx_flash_deals_ends ON flash_deals(ends_at)",
     "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username_lower ON users(LOWER(username))",
     "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_lower ON users(LOWER(email))",
 ]

@@ -9,7 +9,8 @@ Project map (backend/):
     order_service.py    cancelling, expiring and settling orders
     payment_service.py  Paystack
     maintenance.py      periodic housekeeping
-    routes/             the web endpoints: accounts, shop, orders, seller
+    deal_service.py     deletes finished Fast Finger deals after 24 hours
+    routes/             the web endpoints: accounts, shop, orders, seller, deals
 """
 import os
 
@@ -22,7 +23,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 import config
 from database import db, ensure_schema
-from routes import accounts, orders, seller, shop
+from routes import accounts, deals, orders, seller, shop
 
 
 def create_app():
@@ -39,7 +40,7 @@ def create_app():
     cloudinary.config(cloud_name=os.environ.get('CLOUDINARY_CLOUD_NAME'), api_key=os.environ.get('CLOUDINARY_API_KEY'),
                       api_secret=os.environ.get('CLOUDINARY_API_SECRET'), secure=True)
 
-    for blueprint in (accounts.bp, shop.bp, orders.bp, seller.bp):
+    for blueprint in (accounts.bp, shop.bp, orders.bp, seller.bp, deals.bp):
         app.register_blueprint(blueprint)
 
     register_hooks(app)

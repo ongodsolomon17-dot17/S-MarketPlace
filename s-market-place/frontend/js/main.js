@@ -66,13 +66,27 @@ document.addEventListener("click", async event => {
   }
   if (closest("[data-logout]")) { await logout(); return; }
 
-  /* ---- trader tools ---- */
-  const saveProduct = closest("[data-save-product]");
-  if (saveProduct) { await saveOwnedProduct(saveProduct.dataset.saveProduct); return; }
-  const deleteProduct = closest("[data-delete-product]");
-  if (deleteProduct) { await deleteOwnedProduct(deleteProduct.dataset.deleteProduct); return; }
+  /* ---- trader tools: products ---- */
+  if (closest("[data-open-product-editor]")) { await openProductEditor(); return; }
+  const editButton = closest("[data-edit-product]");
+  if (editButton) { await openProductEditor(ownedProducts[editButton.dataset.editProduct]); return; }
+  if (closest("[data-close-product-editor]")) { closeProductEditor(); return; }
+  if (target.id === "pe-delete") { await deleteEditingProduct(); return; }
+  if (target.id === "pe-pause") { await togglePauseEditing(); return; }
+  const restoreButton = closest("[data-restore-product]");
+  if (restoreButton) { await restoreProduct(restoreButton.dataset.restoreProduct); return; }
   const updateLine = closest("[data-update-item]");
   if (updateLine) { await updateOrderLine(updateLine.dataset.updateItem); return; }
+
+  /* ---- Fast Finger ---- */
+  if (closest("[data-open-deal-editor]")) { openDealEditor(); return; }
+  if (closest("[data-close-deal-editor]")) { closeDealEditor(); return; }
+  const soldButton = closest("[data-deal-sold]");
+  if (soldButton) { await markDealSold(soldButton.dataset.dealSold); return; }
+  const deleteDealButton = closest("[data-deal-delete]");
+  if (deleteDealButton) { await deleteDeal(deleteDealButton.dataset.dealDelete); return; }
+  const description = closest("[data-toggle-description]");
+  if (description) { description.classList.toggle("is-open"); return; }   // tap a deal's text to read all of it
 
   /* ---- buyer orders ---- */
   const payButton = closest("[data-pay-order]");
@@ -94,9 +108,16 @@ document.getElementById("market-search").addEventListener("keydown", event => {
 
 /* Forms. */
 document.getElementById("auth-form").addEventListener("submit", submitAuth);
-document.getElementById("product-form").addEventListener("submit", submitProduct);
+document.getElementById("product-form").addEventListener("submit", saveProduct);
+document.getElementById("deal-form").addEventListener("submit", saveDeal);
 document.getElementById("checkout-form").addEventListener("submit", submitCheckout);
-document.getElementById("new-product-category").addEventListener("change", toggleCustomCategory);
+document.getElementById("pe-category").addEventListener("change", toggleCustomCategory);
+document.getElementById("pe-slash-toggle").addEventListener("change", togglePriceSlash);
+
+/* Price-slash inputs (product pop-up and deal pop-up): update the "= new price" line as the trader types. */
+document.addEventListener("input", event => {
+  if (event.target.classList.contains("slash-input")) refreshSlashPreview(event.target.dataset.slash);
+});
 
 /* If the browser restores this page from its back/forward cache after Paystack, reload so nothing is stuck. */
 window.addEventListener("pageshow", event => { if (event.persisted) window.location.reload(); });

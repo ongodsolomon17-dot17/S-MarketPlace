@@ -23,6 +23,7 @@ function showPage(name, options = {}) {
   // A trader who taps "Account" lands on the add-item screen; account details live under Settings.
   if (name === "account" && currentUser && currentUser.role === "trader") name = "trader-dashboard";
   activePage = name;
+  stopDealTimer();                       // the Fast Finger countdown only runs while its screen is open
 
   document.querySelectorAll(".page-panel").forEach(panel => {
     const isActive = panel.dataset.page === name;
@@ -39,6 +40,7 @@ function showPage(name, options = {}) {
   if (name === "account") renderAccount();
   if (name === "settings") renderSettings();
   if (name === "trader-dashboard") loadTraderDashboard();
+  if (name === "deals") renderDeals();
 
   if (options.restoreScroll !== undefined) window.scrollTo(0, options.restoreScroll);
   else window.scrollTo({ top: 0, behavior: "smooth" });

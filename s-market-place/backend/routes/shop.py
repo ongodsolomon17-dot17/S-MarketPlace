@@ -9,7 +9,7 @@ import maintenance
 from auth import current_user, visitor_id
 from categories import list_categories
 from database import db
-from helpers import int_arg, like_term, product_dict, search_tokens, too_many_requests
+from helpers import int_arg, like_term, public_product_dict, search_tokens, too_many_requests
 
 bp = Blueprint('shop', __name__)
 
@@ -28,7 +28,7 @@ def for_you_feed():
     user = current_user()
     with db() as con:
         rows, has_more = feed.feed_page(con, user['id'] if user else None, visitor_id(), seed, offset, limit)
-    return jsonify(products=[product_dict(row) for row in rows], has_more=has_more, seed=seed)
+    return jsonify(products=[public_product_dict(row) for row in rows], has_more=has_more, seed=seed)
 
 
 @bp.post('/api/interactions')
@@ -99,7 +99,7 @@ def list_products():
     sql += f' ORDER BY {order_sql} LIMIT %s OFFSET %s'
     with db() as con:
         rows = con.execute(sql, [*params, *order_params, limit + 1, offset]).fetchall()
-    return jsonify(products=[product_dict(row) for row in rows[:limit]], has_more=len(rows) > limit)
+    return jsonify(products=[public_product_dict(row) for row in rows[:limit]], has_more=len(rows) > limit)
 
 
 @bp.get('/api/products/<int:product_id>')
@@ -109,7 +109,7 @@ def product_detail(product_id):
         row = con.execute(PRODUCT_SELECT + ' AND p.id = %s', (product_id,)).fetchone()
     if not row:
         return jsonify(error='This product is no longer available.'), 404
-    return jsonify(product=product_dict(row))
+    return jsonify(product=public_product_dict(row))
 
 
 @bp.get('/api/products/<int:product_id>/related')
@@ -123,7 +123,7 @@ def related_products(product_id):
         rows = con.execute(
             PRODUCT_SELECT + ' AND p.id <> %s ORDER BY (p.stock > 0) DESC, (p.category = %s) DESC, (p.trader_id = %s) DESC, p.id DESC LIMIT %s',
             (product_id, current['category'], current['trader_id'], limit)).fetchall()
-    return jsonify(products=[product_dict(row) for row in rows])
+    return jsonify(products=[public_product_dict(row) for row in rows])
 
 
 # ----------------------------------------------------------------------------- categories and shops

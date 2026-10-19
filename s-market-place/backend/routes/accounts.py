@@ -8,6 +8,7 @@ from flask import Blueprint, current_app, g, jsonify, request
 from werkzeug.security import check_password_hash, generate_password_hash
 
 import config
+import image_service
 from auth import USER_COLUMNS, current_user, make_token, public_user, require_login
 from database import db
 from helpers import TOO_MANY_MESSAGE, too_many_requests
@@ -175,6 +176,9 @@ def update_profile_image():
     if not url.startswith('https://') or len(url) > 500:
         return jsonify(error='A secure image URL is required.'), 400
     with db() as con:
+        old = con.execute('SELECT profile_image FROM users WHERE id=%s', (g.user['id'],)).fetchone()['profile_image']
         row = con.execute(f'UPDATE users SET profile_image=%s WHERE id=%s RETURNING {USER_COLUMNS}',
                           (url, g.user['id'])).fetchone()
+        if old and old != url:
+            image_service.queue_image_deletion(con, old)     # the old picture is no longer used
     return jsonify(message='Profile picture updated.', user=public_user(row))

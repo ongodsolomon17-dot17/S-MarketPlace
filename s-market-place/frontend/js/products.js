@@ -20,7 +20,8 @@ function productCardHTML(product) {
   return `
     <article class="product-card">
       <div class="product-image-wrap" data-open-product="${product.id}" role="button" tabindex="0" aria-label="View ${escapeHTML(product.name)}">
-        <span class="availability ${available ? "" : "sold-out"}">${available ? `Available · ${Number(product.stock)} left` : "Sold out"}</span>
+        <span class="availability ${available ? "" : "sold-out"}">${stockLabel(product)}</span>
+        ${ribbonHTML(product)}
         ${image
           ? `<img class="product-image" src="${escapeHTML(image)}" alt="${escapeHTML(product.name)}" loading="lazy" onerror="this.style.display='none'">`
           : '<div class="image-placeholder">✦<small>No photo</small></div>'}
@@ -31,7 +32,7 @@ function productCardHTML(product) {
         <h3 data-open-product="${product.id}">${escapeHTML(product.name)}</h3>
         <p class="product-description" data-open-product="${product.id}">${escapeHTML(product.description || "Tap to see the details.")}</p>
         <div class="product-bottom">
-          <strong class="price">${formatPrice(product.price)}</strong>
+          ${priceHTML(product)}
           <button class="small-add" type="button" data-add-to-cart="${product.id}" ${available ? "" : "disabled"}>${available ? "Add to bag" : "Sold out"}</button>
         </div>
       </div>
@@ -218,8 +219,8 @@ function productDetailHTML(product) {
     <div class="detail-info">
       <p class="product-category">${escapeHTML(product.category)} · <button class="inline-store-link" type="button" data-open-store="${escapeHTML(product.trader_username || "")}">${escapeHTML(product.store_name || "Trader shop")}</button></p>
       <h1 class="detail-title">${escapeHTML(product.name)}</h1>
-      <p class="detail-price">${formatPrice(product.price)}</p>
-      <span class="availability inline ${available ? "" : "sold-out"}">${available ? `Available · ${Number(product.stock)} left` : "Sold out"}</span>
+      <div class="detail-price">${priceHTML(product)}</div>
+      <span class="availability inline ${available ? "" : "sold-out"}">${stockLabel(product)}</span>
       <p class="detail-description">${escapeHTML(product.description || "The trader has not added a description yet.")}</p>
       <div class="hero-actions">
         <button class="primary-button" type="button" data-add-to-cart="${product.id}" ${available ? "" : "disabled"}>${available ? "Add to bag" : "Sold out"}</button>

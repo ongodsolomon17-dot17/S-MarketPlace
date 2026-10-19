@@ -15,6 +15,7 @@
   <script src="/js/navigation.js" defer></script>
   <script src="/js/cart.js" defer></script>
   <script src="/js/products.js" defer></script>
+  <script src="/js/deals.js" defer></script>
   <script src="/js/auth.js" defer></script>
   <script src="/js/seller.js" defer></script>
   <script src="/js/orders.js" defer></script>
@@ -123,50 +124,33 @@
       <div id="cart-content" class="cart-content"><p class="muted">Loading your cart…</p></div>
     </section>
 
-    <!-- ============================== TRADER: ADD ITEM (opens first) ============================== -->
+    <!-- ============================== TRADER SCREEN ==============================
+         Short and tidy: an "Add product" button (the form opens in a pop-up), a slim product list
+         (name, price, quantity, Edit) and the orders to fulfil. -->
     <section class="page-panel" id="page-trader-dashboard" data-page="trader-dashboard" hidden>
       <section class="page-intro">
         <p class="eyebrow">TRADER CENTRE</p>
         <h1 id="dashboard-store-name">Your shop</h1>
-        <p>Add a new product below. Picking the right category helps shoppers find it.</p>
-        <button class="outline-button" type="button" data-page-link="settings">⚙ Settings</button>
+        <p>Add products, keep your stock up to date and follow your orders.</p>
+        <div class="hero-actions">
+          <button class="primary-button" type="button" data-open-product-editor>+ Add product</button>
+          <button class="outline-button" type="button" data-page-link="deals">⚡ Fast Finger</button>
+          <button class="outline-button" type="button" data-page-link="settings">⚙ Settings</button>
+        </div>
       </section>
 
-      <div class="dashboard-layout">
-        <form id="product-form" class="panel-form">
-          <h2>Add a product</h2>
-          <label for="new-product-name">Product name</label>
-          <input id="new-product-name" name="name" required maxlength="120">
-
-          <label for="new-product-price">Price (₦)</label>
-          <input id="new-product-price" name="price" type="number" min="0" step="0.01" required>
-
-          <!-- Choose from the list, or pick the last option and type a new category -->
-          <label for="new-product-category">Category</label>
-          <select id="new-product-category" required><option value="">Loading categories…</option></select>
-          <input id="new-product-category-custom" maxlength="40" placeholder="Type your category, e.g. Pet Supplies" hidden>
-
-          <label for="new-product-stock">Quantity in stock</label>
-          <input id="new-product-stock" name="stock" type="number" min="0" value="1" required>
-
-          <label for="new-product-image">Image URL (optional)</label>
-          <input id="new-product-image" name="image" type="url" placeholder="https://...">
-          <label for="new-product-image-file">Or upload product image (max 5MB)</label>
-          <input id="new-product-image-file" type="file" accept="image/png,image/jpeg,image/webp">
-
-          <label for="new-product-description">Description</label>
-          <textarea id="new-product-description" name="description" rows="4" maxlength="1000"></textarea>
-
-          <button class="primary-button" type="submit">Add to my shop</button>
-          <p id="product-feedback" class="form-feedback" role="status"></p>
-        </form>
-
+      <div class="dashboard-layout stacked">
         <div class="panel-list">
           <h2>Your listed products</h2>
           <div id="trader-own-products"><p class="muted">Loading your products…</p></div>
         </div>
-
-        <div class="panel-list wide-panel">
+        <!-- Deleted products wait here for 30 days, then the system erases them (and their pictures) for good -->
+        <div class="panel-list" id="deleted-panel" hidden>
+          <h2>Recently deleted</h2>
+          <p class="muted">Deleted products are erased for good, with their pictures, after 30 days. Restore one before then to bring it back.</p>
+          <div id="trader-deleted-products"></div>
+        </div>
+        <div class="panel-list">
           <h2>Orders to fulfil</h2>
           <div id="trader-orders"><p class="muted">Loading orders…</p></div>
         </div>
@@ -180,6 +164,18 @@
         <p>Track payment and delivery for everything you have ordered.</p>
       </section>
       <div id="orders-content" class="orders-content"></div>
+    </section>
+
+    <!-- ============================== FAST FINGER (flash deals) ==============================
+         Everyone sees the deals and their countdowns; only traders get the "Post a deal" button. -->
+    <section class="page-panel" id="page-deals" data-page="deals" hidden>
+      <section class="page-intro">
+        <p class="eyebrow">⚡ FAST FINGER</p>
+        <h1>Flash deals</h1>
+        <p>Limited-time price slashes from traders. Be quick: when the clock hits zero, the deal is gone.</p>
+        <div id="deals-actions" class="hero-actions"></div>
+      </section>
+      <div class="product-grid" id="deals-grid"></div>
     </section>
 
     <!-- ============================== ABOUT ============================== -->
@@ -215,6 +211,7 @@
   <!-- ============================== BOTTOM MENU ============================== -->
   <nav class="bottom-nav" aria-label="Main navigation">
     <button type="button" class="nav-item is-current" data-page-link="home"><span class="nav-symbol"><img src="/icons/home-icon-circle.png" alt="🏠" height="30" width="30"></span><span>Marketplace</span></button>
+    <button type="button" class="nav-item" data-page-link="deals"><span class="nav-symbol"><svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor" aria-hidden="true"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg></span><span>Fast Finger</span></button>
     <button type="button" class="nav-item" data-page-link="cart"><span class="nav-symbol"><img src="/icons/trolley.png" alt="🛒" height="30" width="30"></span><span>Cart</span></button>
     <button type="button" class="nav-item" data-page-link="about"><span class="nav-symbol"><img src="/icons/about-us-icon-circle.png" alt="" height="30" width="30"></span><span>About</span></button>
     <!-- Traders land on the add-item screen from here; the label becomes "My shop" for them -->
@@ -288,6 +285,114 @@
         </div>
         <button type="submit" class="primary-button auth-submit" id="checkout-submit">Continue to payment</button>
         <p class="form-feedback" id="checkout-feedback" role="status"></p>
+      </form>
+    </section>
+  </div>
+
+  <!-- ============================== PRODUCT POP-UP (add + edit) ============================== -->
+  <div class="auth-overlay" id="product-overlay" hidden>
+    <div class="auth-backdrop" data-close-product-editor></div>
+    <section class="auth-card" role="dialog" aria-modal="true" aria-labelledby="product-editor-title">
+      <button class="auth-close" type="button" data-close-product-editor aria-label="Close">×</button>
+      <p class="eyebrow">YOUR SHOP</p>
+      <h2 id="product-editor-title">Add a product</h2>
+      <form id="product-form">
+        <label for="pe-name">Product name</label>
+        <input id="pe-name" maxlength="120" required>
+
+        <!-- Choose from the list, or pick the last option and type a new category -->
+        <label for="pe-category">Category</label>
+        <select id="pe-category" required><option value="">Loading categories…</option></select>
+        <input id="pe-category-custom" maxlength="40" placeholder="Type your category, e.g. Pet Supplies" hidden>
+
+        <!-- Price slash: tick the box to enter an original price and a percent off instead of a plain price -->
+        <label class="check-row"><input type="checkbox" id="pe-slash-toggle"> This product has a price slash (discount)</label>
+        <div id="pe-price-field">
+          <label for="pe-price">Price (₦)</label>
+          <input id="pe-price" type="number" min="0" step="0.01" required>
+        </div>
+        <div id="pe-slash-fields" class="slash-fields" hidden>
+          <div class="form-two-columns">
+            <div><label for="pe-original">Original price (₦)</label><input id="pe-original" class="slash-input" data-slash="pe" type="number" min="0.01" step="0.01"></div>
+            <div><label for="pe-percent">Discount (%)</label><input id="pe-percent" class="slash-input" data-slash="pe" type="number" min="1" max="95" step="1"></div>
+          </div>
+          <p class="price-preview" id="pe-preview"></p>
+        </div>
+
+        <div class="form-two-columns">
+          <div><label for="pe-stock">Quantity in stock</label><input id="pe-stock" type="number" min="0" step="1" value="1" required></div>
+          <div>
+            <label for="pe-show-quantity">Buyers see</label>
+            <select id="pe-show-quantity">
+              <option value="true">How many are left</option>
+              <option value="false">Just “In stock”</option>
+            </select>
+          </div>
+        </div>
+
+        <label for="pe-image">Image URL (optional)</label>
+        <input id="pe-image" type="url" placeholder="https://...">
+        <label for="pe-image-file">Or upload a picture (max 5MB)</label>
+        <input id="pe-image-file" type="file" accept="image/png,image/jpeg,image/webp">
+
+        <label for="pe-description">Description</label>
+        <textarea id="pe-description" rows="4" maxlength="1000"></textarea>
+
+        <p class="paused-note" id="pe-paused-note" hidden>⏸ This product is paused: shoppers can't see or buy it. Tap “Resume product” to show it again.</p>
+        <div class="modal-actions">
+          <button class="primary-button" type="submit" id="pe-save">Add to my shop</button>
+          <button class="outline-button" type="button" data-close-product-editor>Cancel</button>
+        </div>
+        <!-- Only shown while editing an existing product -->
+        <div class="modal-actions secondary-actions" id="pe-lifecycle" hidden>
+          <button class="outline-button" type="button" id="pe-pause">⏸ Pause product</button>
+          <button class="remove-button" type="button" id="pe-delete">Delete product</button>
+        </div>
+        <p class="form-feedback" id="pe-feedback" role="status"></p>
+      </form>
+    </section>
+  </div>
+
+  <!-- ============================== FAST FINGER POP-UP (post a deal) ============================== -->
+  <div class="auth-overlay" id="deal-overlay" hidden>
+    <div class="auth-backdrop" data-close-deal-editor></div>
+    <section class="auth-card" role="dialog" aria-modal="true" aria-labelledby="deal-title-heading">
+      <button class="auth-close" type="button" data-close-deal-editor aria-label="Close">×</button>
+      <p class="eyebrow">⚡ FAST FINGER</p>
+      <h2 id="deal-title-heading">Post a deal</h2>
+      <form id="deal-form">
+        <label for="deal-title">Deal title</label>
+        <input id="deal-title" maxlength="120" required placeholder="e.g. Gold wrist watch">
+
+        <label for="deal-description">Short description (optional)</label>
+        <textarea id="deal-description" rows="3" maxlength="300"></textarea>
+
+        <div class="form-two-columns">
+          <div><label for="deal-original">Original price (₦)</label><input id="deal-original" class="slash-input" data-slash="deal" type="number" min="0.01" step="0.01" required></div>
+          <div><label for="deal-percent">Discount (%)</label><input id="deal-percent" class="slash-input" data-slash="deal" type="number" min="1" max="95" step="1" required></div>
+        </div>
+        <p class="price-preview" id="deal-preview"></p>
+
+        <label for="deal-duration">How long should the deal run?</label>
+        <select id="deal-duration">
+          <option value="30">30 minutes</option>
+          <option value="60" selected>1 hour</option>
+          <option value="180">3 hours</option>
+          <option value="360">6 hours</option>
+          <option value="720">12 hours</option>
+          <option value="1440">24 hours</option>
+        </select>
+
+        <label for="deal-image">Image URL (optional)</label>
+        <input id="deal-image" type="url" placeholder="https://...">
+        <label for="deal-image-file">Or upload a picture (max 5MB)</label>
+        <input id="deal-image-file" type="file" accept="image/png,image/jpeg,image/webp">
+
+        <div class="modal-actions">
+          <button class="primary-button" type="submit">Post deal</button>
+          <button class="outline-button" type="button" data-close-deal-editor>Cancel</button>
+        </div>
+        <p class="form-feedback" id="deal-feedback" role="status"></p>
       </form>
     </section>
   </div>

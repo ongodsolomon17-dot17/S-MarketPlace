@@ -249,3 +249,61 @@ body { padding-bottom: 92px; }
   .product-detail{grid-template-columns:1fr}
   .detail-media{min-height:220px}
 }
+
+
+/* ============================================================================
+   v3 additions: price slash, Fast Finger, slim trader lists, pop-up forms
+   ============================================================================ */
+
+/* ---- price slash: ~~old price~~  new price  [30% OFF] ---- */
+.price-block{display:flex;flex-direction:column;align-items:flex-start;gap:2px}
+.price-old{color:var(--muted);text-decoration:line-through;font-size:12px}
+.off-badge{display:inline-block;padding:2px 8px;border-radius:999px;background:#d9edcf;color:#21421d;font-size:10px;font-weight:800}
+.off-ribbon{position:absolute;top:12px;right:12px;z-index:2;padding:5px 9px;border-radius:30px;background:var(--market-gold);color:#24102d;font-size:11px;font-weight:800}
+.detail-price{margin:0 0 10px}
+.detail-price .price{font-size:clamp(22px,3vw,30px);color:var(--gold);font-weight:700}
+.detail-price .price-block{flex-direction:row;flex-wrap:wrap;align-items:center;gap:6px 12px}
+.detail-price .price-old{font-size:16px}
+.detail-price .off-badge{font-size:12px;padding:4px 10px}
+
+/* ---- Fast Finger cards ---- */
+.deal-card.is-ended,.deal-card.is-sold{filter:grayscale(.75);opacity:.8}
+.deal-stamp{position:absolute;inset:0;z-index:3;display:grid;place-items:center;background:rgba(20,7,28,.6);color:#fff;font-size:20px;font-weight:800;letter-spacing:3px;text-transform:uppercase}
+.deal-timer-row{margin-top:10px}
+.deal-timer{display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;background:rgba(231,183,107,.16);color:var(--gold);font-weight:700;font-size:13px;font-variant-numeric:tabular-nums}
+.deal-timer.is-urgent{background:rgba(214,69,98,.25);color:#ffb3c1}
+.deal-timer.is-over{background:rgba(255,255,255,.12);color:#cdbac9}
+.deal-owner-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+/* tapping a deal's description reveals all of it */
+.product-description.is-open{display:block;max-height:none;-webkit-line-clamp:unset;line-clamp:unset}
+
+/* ---- slim trader lists ---- */
+.dashboard-layout.stacked{grid-template-columns:minmax(0,1fr);max-width:820px}
+.owned-product.compact{flex-wrap:nowrap}
+.owned-info{flex:1;min-width:0}
+.owned-info strong{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.owned-info small{display:block;margin-top:3px;color:#d9c7e0}
+.order-line.compact{align-items:center}
+.order-line-main{flex:1 1 200px;min-width:0}
+.order-line-main strong{display:block}
+.delivery-details{margin-top:6px;font-size:13px;color:#d9c7e0}
+.delivery-details summary{cursor:pointer;color:var(--gold);font-weight:600}
+.delivery-details p{margin:6px 0 0;line-height:1.6}
+
+/* ---- pop-up forms ---- */
+.auth-card select,.auth-card textarea{min-width:0;width:100%;padding:12px 14px;border-radius:10px;border:1px solid #7c6688;background:#160b20;color:#fff;box-sizing:border-box;font:inherit}
+.auth-card input[type=file]{padding:9px}
+.check-row{display:flex!important;align-items:center;gap:10px;margin:14px 0 4px!important;cursor:pointer}
+.auth-card .check-row input{width:auto;margin:0}
+.slash-fields{padding:12px;margin-top:6px;border:1px dashed rgba(216,183,122,.6);border-radius:12px}
+.price-preview{margin:8px 0 0;color:var(--gold);font-weight:700;font-size:14px}
+.modal-actions{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin-top:16px}
+
+@media(max-width:380px){.nav-item span:last-child{white-space:nowrap;font-size:9.5px}}
+
+
+/* ---- v4: pause / delete ---- */
+.paused-badge{display:inline-block;margin-left:6px;padding:2px 8px;border-radius:999px;background:rgba(255,255,255,.16);color:#f3e3a6;font-size:10px;font-weight:800;letter-spacing:.5px;vertical-align:middle}
+.paused-note{margin:10px 0 0;padding:10px 12px;border-radius:10px;background:rgba(243,227,166,.12);color:#f3e3a6;font-size:13px;line-height:1.5}
+.secondary-actions{margin-top:10px;padding-top:12px;border-top:1px solid rgba(255,255,255,.14)}
+#deleted-panel > .muted{margin:0 0 10px;font-size:13px;line-height:1.5}
