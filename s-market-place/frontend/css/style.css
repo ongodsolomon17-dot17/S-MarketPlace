@@ -3,8 +3,31 @@
 :root{--plum:#4b123e;--plum-dark:#210d20;--pink:#9e456d;--rose:#d8a3b8;--gold:#e7b76b;--cream:#fff8f2;--muted:#d8c6d1;--panel:rgba(37,12,34,.72);--line:rgba(255,255,255,.13);--shadow:0 16px 45px rgba(13,3,15,.22)}
 *{box-sizing:border-box}
 html{scroll-behavior:smooth}
-body{margin:0;min-height:100vh;background:linear-gradient(135deg,#68104f 0%,#350f38 55%,#210d28 100%);color:var(--cream);font-family:'DM Sans',Arial,sans-serif;padding-bottom:105px}
-button,input,textarea{font:inherit}
+body {
+  background-color: #452044;
+  background-image:
+    radial-gradient(ellipse at 25% 40%, rgba(221, 115, 174, 0.72), transparent 48%),
+    radial-gradient(ellipse at 72% 45%, rgba(138, 70, 162, 0.68), transparent 50%),
+    radial-gradient(ellipse at 78% 82%, rgba(155, 109, 101, 0.38), transparent 40%);
+  background-size: 140% 140%;
+  background-attachment: fixed;
+  animation: shader-like-drift 24s ease-in-out infinite alternate;
+}
+
+@keyframes shader-like-drift {
+  0% {
+    background-position: 0% 20%, 100% 70%, 70% 100%;
+  }
+  100% {
+    background-position: 45% 75%, 30% 15%, 100% 30%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body {
+    animation: none;
+  }
+}button,input,textarea{font:inherit}
 button{cursor:pointer}
 
 button:focus-visible,a:focus-visible,input:focus-visible,textarea:focus-visible{outline:3px solid var(--gold);outline-offset:3px}
