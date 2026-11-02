@@ -1,0 +1,5 @@
+Third-party libraries shipped with S-Market Place (kept as local files so the site does not depend on another server):
+
+jsQR 1.4.0  - reads a QR code from a camera picture.   Licence: Apache-2.0   https://github.com/cozmo/jsQR
+qrcode-generator 2.0.4 - draws a QR code.               Licence: MIT          https://github.com/kazuhikoarase/qrcode-generator
+  (The word "QR Code" is a registered trademark of DENSO WAVE INCORPORATED.)

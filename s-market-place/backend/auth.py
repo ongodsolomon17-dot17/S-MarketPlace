@@ -23,7 +23,9 @@ def public_user(row):
     """A user row without the password hash, with dates/decimals turned into text."""
     if not row:
         return None
-    return {k: (str(v) if isinstance(v, (datetime, Decimal)) else v) for k, v in dict(row).items() if k != 'password_hash'}
+    user = {k: (str(v) if isinstance(v, (datetime, Decimal)) else v) for k, v in dict(row).items() if k != 'password_hash'}
+    user['is_admin'] = user['id'] in config.ADMIN_USER_IDS      # set in the ADMIN_USER_IDS environment variable
+    return user
 
 
 def _fingerprint(password_hash):
@@ -70,6 +72,20 @@ def require_login(fn):
         user = current_user()
         if not user:
             return jsonify(error='Please sign in first.', needs_auth=True), 401
+        g.user = user
+        return fn(*args, **kwargs)
+    return wrapped
+
+
+def require_admin(fn):
+    """Route decorator: only the marketplace owner (an account id listed in ADMIN_USER_IDS)."""
+    @wraps(fn)
+    def wrapped(*args, **kwargs):
+        user = current_user()
+        if not user:
+            return jsonify(error='Please sign in first.', needs_auth=True), 401
+        if not user['is_admin']:
+            return jsonify(error='This area is for the marketplace admin only.'), 403
         g.user = user
         return fn(*args, **kwargs)
     return wrapped

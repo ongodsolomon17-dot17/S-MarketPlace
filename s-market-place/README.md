@@ -22,8 +22,9 @@ A multi-trader marketplace where traders sell **any kind of product** and shoppe
 - **Search** — several words must all match a name, description, category or shop; name matches rank first.
 - **Traders** get a tidy screen: an **+ Add product** button (the form opens in a pop-up), a slim product list (name, price, quantity, **Edit**) and slim order rows (buyer, condition, **Save update**). Profile editing lives behind a **Settings** button.
 - **Edit everything** about a product in the same pop-up, including a **price slash** (original price + % off → "~~₦200,000~~ ₦140,000 · 30% OFF") and a choice to show **how many are left** or just **"In stock"**.
+- **Escrow.** A buyer's payment is held until the buyer confirms delivery by scanning the package's one-time QR and tapping **Received** (or an admin decides a dispute). Traders are notified when a payment is secured and credited when it is released, add their bank details in Settings, and request payouts that the admin sends. A buyer can **report a problem** (text + up to 2 photos) instead; the money then stays on hold. See `CHANGES.md` for the full flow and the one-time admin setup.
 - **Pause / resume** a product (it is hidden from shoppers but kept), and **delete** with a 30-day countdown: deleted products wait in "Recently deleted" (restorable), then are erased for good together with their Cloudinary picture.
-- **Fast Finger** (bottom menu) — traders post limited-time price-slash deals with a live countdown. Ended or sold deals disappear 24 hours later. See `CHANGES.md`.
+- **Fast Finger** (bottom menu) — traders post limited-time price-slash deals (with a quantity) and a live countdown. Buyers and guests add a live deal to the cart and check out at the deal price. Ended or sold deals disappear 24 hours later. See `CHANGES.md`.
 - **Buyers** check out with delivery details and pay with Paystack; payments are confirmed server-side (verify call + signed webhook). Unpaid orders are held for 30 minutes and then released; a late payment re-takes the stock or is flagged "Refund needed".
 - Hashed passwords, 14-day signed tokens, change-password signs out other devices, rate-limited login/registration.
 
@@ -55,6 +56,7 @@ backend/
   deal_service.py     deletes finished Fast Finger deals after 24 hours
   product_service.py  erases products 30 days after they were deleted
   image_service.py    deletes unused pictures from Cloudinary (queue + retries)
+  escrow_service.py   holds buyers' money until delivery: commission, release, refund, balances
   routes/             accounts.py · shop.py · orders.py · seller.py · deals.py
 frontend/
   index.html          all screens
@@ -72,6 +74,9 @@ frontend/
 | `PAYSTACK_SECRET_KEY` | `sk_test_…` while testing, `sk_live_…` when live |
 | `CLOUDINARY_CLOUD_NAME` / `CLOUDINARY_API_KEY` / `CLOUDINARY_API_SECRET` | From the Cloudinary dashboard |
 | `ORDER_HOLD_MINUTES` | Optional, default 30 |
+| `COMMISSION_PERCENT` | Optional, default 0. The share of each sale the marketplace keeps (0 to 50) |
+| `ADMIN_USER_IDS` | Your account id (shown in Settings). Gives you the Admin page. Not email-based on purpose |
+| `MIN_PAYOUT` / `AUTO_RELEASE_DAYS` | Optional: smallest payout (default 1000) / release automatically N days after "Delivered" (default 0 = off) |
 
 The API refuses to start without `SECRET_KEY` and `FRONTEND_ORIGIN`, so a forgotten variable shows up in the Render logs.
 
@@ -104,6 +109,6 @@ python -m http.server 8000                              # site on http://localho
 ## Not built yet
 
 - Paying traders out automatically (all money lands in your one Paystack account; Paystack split payments could automate it).
-- Refund button, password reset / email verification, order emails, reviews, admin moderation, real URL routing (the browser Back button leaves the site; use the in-page Back button).
+- Automatic bank payouts and automatic refunds (today you send payouts and refund buyers yourself; Paystack Transfers/Refunds could automate both), password reset / email verification, order emails, reviews, admin moderation, real URL routing (the browser Back button leaves the site; use the in-page Back button).
 - The login token is kept in browser local storage; rate limits and the feed cache live in memory per server process.
 - Render's free plan sleeps when idle, so the first request after a quiet period can take up to a minute.

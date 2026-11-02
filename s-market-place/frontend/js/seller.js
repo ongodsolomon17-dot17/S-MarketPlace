@@ -54,6 +54,8 @@ async function loadTraderDashboard() {
     return;
   }
   document.getElementById("dashboard-store-name").textContent = currentUser.store_name || "Your shop";
+  loadEarnings();
+  loadNotifications(document.getElementById("notifications-panel"));
   loadTraderOrders();
   await loadOwnedProducts();
 }
@@ -285,6 +287,7 @@ async function loadTraderOrders() {
             <summary>Delivery details</summary>
             <p>${escapeHTML(line.shipping_phone)}<br>${escapeHTML(line.shipping_address)}, ${escapeHTML(line.shipping_city)}, ${escapeHTML(line.shipping_state)}</p>
           </details>
+          <small class="escrow-line">${escrowLineText(line)}</small>
         </div>
         <div class="order-line-actions">
           <select data-item-status="${line.item_id}" aria-label="Delivery condition">
@@ -292,10 +295,24 @@ async function loadTraderOrders() {
               `<option value="${key}" ${key === line.fulfilment_status ? "selected" : ""} ${key === "Pending" ? "disabled" : ""}>${text}</option>`).join("")}
           </select>
           <button type="button" class="outline-button" data-update-item="${line.item_id}">Save update</button>
+          ${line.escrow_status === "held" && !line.scanned ? `<button type="button" class="outline-button" data-delivery-qr="${line.item_id}">Delivery QR</button>` : ""}
+          ${line.scanned && line.escrow_status === "held" ? '<span class="badge badge-paid">Package confirmed</span>' : ""}
         </div>
       </article>`).join("");
   } catch (error) {
     target.innerHTML = `<p class="muted">${escapeHTML(error.message)}</p>`;
+  }
+}
+
+/** One short line about this order's money (it is held in escrow until the buyer confirms delivery). */
+function escrowLineText(line) {
+  const amount = formatPrice(line.seller_amount);
+  switch (line.escrow_status) {
+    case "held": return `🔒 ${amount} is held in escrow. You are credited when the buyer confirms delivery.`;
+    case "disputed": return `⚠ The buyer reported a problem. ${amount} stays on hold while it is reviewed.`;
+    case "released": return `✓ ${amount} credited to your balance.`;
+    case "refunded": return "↩ Refunded to the buyer.";
+    default: return "";
   }
 }
 

@@ -20,6 +20,8 @@ document.addEventListener("click", async event => {
   /* ---- cart buttons come BEFORE "open product" because the + button sits on top of the picture ---- */
   const addButton = closest("[data-add-to-cart]");
   if (addButton) { if (!addButton.disabled) await addToCart(addButton.dataset.addToCart); return; }
+  const addDealButton = closest("[data-add-deal-to-cart]");
+  if (addDealButton) { if (!addDealButton.disabled) await addDealToCart(addDealButton.dataset.addDealToCart); return; }
   const storeButton = closest("[data-open-store]");
   if (storeButton) { await openStore(storeButton.dataset.openStore); return; }
   const productOpener = closest("[data-open-product]");
@@ -88,6 +90,41 @@ document.addEventListener("click", async event => {
   const description = closest("[data-toggle-description]");
   if (description) { description.classList.toggle("is-open"); return; }   // tap a deal's text to read all of it
 
+  /* ---- delivery confirmation (buyer) ---- */
+  const openDelivery = closest("[data-open-delivery]");
+  if (openDelivery) { openDeliverySheet(openDelivery.dataset.openDelivery); return; }
+  if (closest("[data-close-delivery]")) { closeDeliverySheet(); return; }
+  const startScanButton = closest("[data-start-scan]");
+  if (startScanButton) { await startScan(startScanButton.dataset.startScan); return; }
+  if (closest("[data-stop-scan]")) { stopScan(); return; }
+  const codeButton = closest("[data-submit-code]");
+  if (codeButton) { submitManualCode(codeButton.dataset.submitCode); return; }
+  const receivedButton = closest("[data-confirm-received]");
+  if (receivedButton) { receivedButton.disabled = true; await confirmReceived(receivedButton.dataset.confirmReceived); return; }
+  const disputeButton = closest("[data-open-dispute]");
+  if (disputeButton) { openDispute(disputeButton.dataset.openDispute); return; }
+  if (closest("[data-close-dispute]")) { closeDispute(); return; }
+
+  /* ---- delivery QR (trader) ---- */
+  const qrButton = closest("[data-delivery-qr]");
+  if (qrButton) { await openDeliveryQR(qrButton.dataset.deliveryQr); return; }
+  if (closest("[data-close-qr]")) { closeDeliveryQR(); return; }
+  if (closest("[data-qr-share]")) { await shareDeliveryQR(); return; }
+  if (closest("[data-qr-download]")) { await downloadDeliveryQR(); return; }
+  if (closest("[data-qr-regenerate]")) { if (confirm("Make a new code? The old QR will stop working.")) await openDeliveryQR(qrState.itemId, true); return; }
+
+  /* ---- money and notifications ---- */
+  if (closest("[data-request-payout]")) { await requestPayout(); return; }
+  if (closest("[data-mark-notifications-read]")) { await markNotificationsRead(); return; }
+
+  /* ---- admin ---- */
+  const resolveButton = closest("[data-admin-resolve]");
+  if (resolveButton) { await resolveDispute(resolveButton.dataset.adminResolve, resolveButton.dataset.decision); return; }
+  const paidButton = closest("[data-admin-paid]");
+  if (paidButton) { await markPayoutPaid(paidButton.dataset.adminPaid); return; }
+  const rejectButton = closest("[data-admin-reject]");
+  if (rejectButton) { await rejectPayout(rejectButton.dataset.adminReject); return; }
+
   /* ---- buyer orders ---- */
   const payButton = closest("[data-pay-order]");
   if (payButton) { payButton.disabled = true; await payOrder(payButton.dataset.payOrder); return; }
@@ -110,6 +147,7 @@ document.getElementById("market-search").addEventListener("keydown", event => {
 document.getElementById("auth-form").addEventListener("submit", submitAuth);
 document.getElementById("product-form").addEventListener("submit", saveProduct);
 document.getElementById("deal-form").addEventListener("submit", saveDeal);
+document.getElementById("dispute-form").addEventListener("submit", submitDispute);
 document.getElementById("checkout-form").addEventListener("submit", submitCheckout);
 document.getElementById("pe-category").addEventListener("change", toggleCustomCategory);
 document.getElementById("pe-slash-toggle").addEventListener("change", togglePriceSlash);

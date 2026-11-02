@@ -27,7 +27,7 @@ MAX_LIVE_DEALS_PER_TRADER = 10
 DEAL_SELECT = """
     SELECT * FROM (
         SELECT d.*, u.store_name, u.username AS trader_username,
-               CASE WHEN d.sold_at IS NOT NULL THEN 'sold'
+               CASE WHEN d.sold_at IS NOT NULL OR d.quantity <= 0 THEN 'sold'
                     WHEN d.ends_at <= NOW() THEN 'ended'
                     ELSE 'live' END AS status,
                GREATEST(0, EXTRACT(EPOCH FROM (d.ends_at - NOW())))::int AS seconds_left
@@ -46,6 +46,7 @@ def deal_dict(row):
     deal['discount_percent'] = discount_percent(deal['original_price'], deal['price'])
     deal['price'] = float(deal['price'])
     deal['original_price'] = float(deal['original_price'])
+    deal.pop('sold_by_trader', None)                      # internal bookkeeping
     for key in ('ends_at', 'sold_at', 'created_at'):
         deal[key] = iso(deal.get(key))
     return deal
@@ -56,8 +57,15 @@ def deal_dict(row):
 def list_deals():
     """All current deals: live ones with their countdown, and recently ended or sold ones."""
     maintenance.run_periodically()
+    sql, params = DEAL_SELECT, []
+    if 'ids' in request.args:                              # the cart asks only for the deals it holds
+        ids = [int(x) for x in request.args['ids'].split(',') if x.strip().isdigit()][:50]
+        if not ids:
+            return jsonify(deals=[])
+        sql += ' WHERE id = ANY(%s)'
+        params.append(ids)
     with db() as con:
-        rows = con.execute(f'{DEAL_SELECT} {DEAL_ORDER} LIMIT 100').fetchall()
+        rows = con.execute(f'{sql} {DEAL_ORDER} LIMIT 100', params).fetchall()
     return jsonify(deals=[deal_dict(row) for row in rows])
 
 
@@ -76,6 +84,10 @@ def post_deal():
         minutes = int(data.get('duration_minutes'))
     except (TypeError, ValueError):
         minutes = 0
+    try:
+        quantity = int(data.get('quantity', 1))             # how many can be bought at the deal price
+    except (TypeError, ValueError):
+        quantity = 0
 
     if not 1 <= len(title) <= 120:
         return jsonify(error='Enter a deal title of up to 120 characters.'), 400
@@ -87,6 +99,8 @@ def post_deal():
         return jsonify(error='Enter a valid original price and discount.'), 400
     if price >= original:
         return jsonify(error='The deal price must be lower than the original price.'), 400
+    if not 1 <= quantity <= 1000:
+        return jsonify(error='Enter how many are available at this price (1 to 1000).'), 400
     if not MIN_MINUTES <= minutes <= MAX_MINUTES:
         return jsonify(error='Choose how long the deal should run (5 minutes to 24 hours).'), 400
 
@@ -96,9 +110,9 @@ def post_deal():
         if live >= MAX_LIVE_DEALS_PER_TRADER:
             return jsonify(error=f'You can have up to {MAX_LIVE_DEALS_PER_TRADER} live deals at a time. Delete or wait for one to end.'), 400
         row = con.execute(
-            "INSERT INTO flash_deals(trader_id,title,description,image,original_price,price,ends_at) "
-            "VALUES(%s,%s,%s,%s,%s,%s, NOW() + %s::int * INTERVAL '1 minute') RETURNING id",
-            (g.user['id'], title, description, image, original, price, minutes)).fetchone()
+            "INSERT INTO flash_deals(trader_id,title,description,image,original_price,price,quantity,ends_at) "
+            "VALUES(%s,%s,%s,%s,%s,%s,%s, NOW() + %s::int * INTERVAL '1 minute') RETURNING id",
+            (g.user['id'], title, description, image, original, price, quantity, minutes)).fetchone()
         deal = con.execute(f'{DEAL_SELECT} WHERE id = %s', (row['id'],)).fetchone()
     return jsonify(message='Your deal is live!', deal=deal_dict(deal))
 
@@ -108,7 +122,7 @@ def post_deal():
 def mark_deal_sold(deal_id):
     """Mark a deal as sold (it stops counting down and shows "Sold")."""
     with db() as con:
-        done = con.execute('UPDATE flash_deals SET sold_at = NOW() WHERE id=%s AND trader_id=%s AND sold_at IS NULL RETURNING id',
+        done = con.execute('UPDATE flash_deals SET sold_at = NOW(), sold_by_trader = TRUE WHERE id=%s AND trader_id=%s AND sold_at IS NULL RETURNING id',
                            (deal_id, g.user['id'])).fetchone()
     if not done:
         return jsonify(error='Deal not found, or it is already marked as sold.'), 404

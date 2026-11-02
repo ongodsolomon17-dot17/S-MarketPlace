@@ -4,6 +4,7 @@ Every secret and deployment-specific value comes from an environment variable
 (set in the Render dashboard), never from the code. See `.env.example`.
 """
 import os
+from decimal import Decimal
 
 # ----------------------------------------------------------------- run mode
 # FLASK_DEBUG=1 relaxes the strict start-up checks below. Use it on your own computer only.
@@ -16,6 +17,18 @@ DB_SSLMODE = os.environ.get('DB_SSLMODE', 'require')   # Neon requires SSL; loca
 # ----------------------------------------------------------------- payments (Paystack)
 PAYSTACK_SECRET_KEY = os.environ.get('PAYSTACK_SECRET_KEY', '')
 ORDER_HOLD_MINUTES = int(os.environ.get('ORDER_HOLD_MINUTES', '30'))   # how long an unpaid order keeps its stock
+
+# ----------------------------------------------------------------- escrow and payouts
+# The share of each sale that S-Market Place keeps. 0 = no commission. Fixed at the moment a payment is received.
+COMMISSION_PERCENT = Decimal(os.environ.get('COMMISSION_PERCENT', '0'))
+if not Decimal('0') <= COMMISSION_PERCENT <= Decimal('50'):
+    raise RuntimeError('COMMISSION_PERCENT must be between 0 and 50.')
+# If a buyer never confirms delivery, release the money N days after the trader marks the item Delivered.
+# 0 (the default) switches this off: money is then released only by the buyer's confirmation or by the admin.
+AUTO_RELEASE_DAYS = int(os.environ.get('AUTO_RELEASE_DAYS', '0'))
+MIN_PAYOUT = Decimal(os.environ.get('MIN_PAYOUT', '1000'))       # the smallest payout a trader can request (naira)
+# The admin (you) is identified by account id, NOT by email, because anyone can type any email at sign-up.
+ADMIN_USER_IDS = {int(x) for x in os.environ.get('ADMIN_USER_IDS', '').split(',') if x.strip().isdigit()}
 
 # ----------------------------------------------------------------- login tokens
 TOKEN_MAX_AGE = 60 * 60 * 24 * 14   # a login lasts 14 days

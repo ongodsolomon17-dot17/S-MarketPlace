@@ -88,6 +88,35 @@ SCHEMA = [
         attempts INTEGER NOT NULL DEFAULT 0,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())""",
 
+    # ---- escrow: traders' bank details, payout requests, disputes and notifications ---------------
+    """CREATE TABLE IF NOT EXISTS payout_accounts (
+        trader_id BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+        bank_code VARCHAR(20) NOT NULL, bank_name VARCHAR(120) NOT NULL,
+        account_number VARCHAR(20) NOT NULL, account_name VARCHAR(160) NOT NULL,
+        verified_at TIMESTAMPTZ NOT NULL DEFAULT NOW())""",
+    """CREATE TABLE IF NOT EXISTS payouts (
+        id BIGSERIAL PRIMARY KEY,
+        trader_id BIGINT NOT NULL REFERENCES users(id),
+        amount NUMERIC(12,2) NOT NULL CHECK(amount > 0),
+        status VARCHAR(12) NOT NULL DEFAULT 'requested' CHECK(status IN ('requested','paid','rejected')),
+        bank_name VARCHAR(120) NOT NULL, account_number VARCHAR(20) NOT NULL, account_name VARCHAR(160) NOT NULL,  -- copied at request time
+        reference VARCHAR(120) NOT NULL DEFAULT '', note TEXT NOT NULL DEFAULT '',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), resolved_at TIMESTAMPTZ)""",
+    """CREATE TABLE IF NOT EXISTS disputes (
+        id BIGSERIAL PRIMARY KEY,
+        order_item_id BIGINT NOT NULL REFERENCES order_items(id) ON DELETE CASCADE,
+        buyer_id BIGINT NOT NULL REFERENCES users(id),
+        reason_type VARCHAR(24) NOT NULL, details TEXT NOT NULL,
+        photo1 TEXT NOT NULL DEFAULT '', photo2 TEXT NOT NULL DEFAULT '',
+        status VARCHAR(12) NOT NULL DEFAULT 'open' CHECK(status IN ('open','released','refunded')),
+        admin_note TEXT NOT NULL DEFAULT '',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(), resolved_at TIMESTAMPTZ)""",
+    """CREATE TABLE IF NOT EXISTS notifications (
+        id BIGSERIAL PRIMARY KEY,
+        user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        title VARCHAR(160) NOT NULL, body TEXT NOT NULL DEFAULT '', link VARCHAR(60) NOT NULL DEFAULT '',
+        read_at TIMESTAMPTZ, created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())""",
+
     # ---- upgrades for databases created by earlier versions --------------------------------------
     "ALTER TABLE products ADD COLUMN IF NOT EXISTS original_price NUMERIC(12,2)",            # the "was" price (price slash)
     "ALTER TABLE products ADD COLUMN IF NOT EXISTS show_quantity BOOLEAN NOT NULL DEFAULT TRUE",  # show "5 left" or just "In stock"
@@ -123,6 +152,34 @@ SCHEMA = [
     "CREATE INDEX IF NOT EXISTS idx_interactions_user ON interactions(user_id, created_at)",
     "CREATE INDEX IF NOT EXISTS idx_interactions_visitor ON interactions(visitor_id, created_at)",
     "CREATE INDEX IF NOT EXISTS idx_interactions_product ON interactions(product_id)",
+    # Fast Finger deals can be bought: they have a quantity, and an order line can point at a deal instead of a product.
+    "ALTER TABLE flash_deals ADD COLUMN IF NOT EXISTS quantity INTEGER NOT NULL DEFAULT 1 CHECK (quantity >= 0)",
+    # sold_by_trader: TRUE when the trader pressed "Mark as sold"; FALSE when it sold out by itself.
+    # (Pre-existing deals can only have been marked by the trader, hence the one-time DEFAULT TRUE below.)
+    "ALTER TABLE flash_deals ADD COLUMN IF NOT EXISTS sold_by_trader BOOLEAN NOT NULL DEFAULT TRUE",
+    "ALTER TABLE flash_deals ALTER COLUMN sold_by_trader SET DEFAULT FALSE",
+    "ALTER TABLE order_items ALTER COLUMN product_id DROP NOT NULL",
+    "ALTER TABLE order_items ADD COLUMN IF NOT EXISTS deal_id BIGINT REFERENCES flash_deals(id) ON DELETE SET NULL",
+    "ALTER TABLE order_items ADD COLUMN IF NOT EXISTS trader_id BIGINT",     # who sells this line (works for products AND deals)
+    "UPDATE order_items oi SET trader_id = p.trader_id FROM products p WHERE oi.product_id = p.id AND oi.trader_id IS NULL",
+    "CREATE INDEX IF NOT EXISTS idx_order_items_trader ON order_items(trader_id)",
+    "CREATE INDEX IF NOT EXISTS idx_order_items_deal ON order_items(deal_id)",
+    # Escrow: where each order line's money is. unpaid -> held -> released (to the trader) | disputed -> released/refunded
+    "ALTER TABLE order_items ADD COLUMN IF NOT EXISTS escrow_status VARCHAR(12) NOT NULL DEFAULT 'unpaid'",
+    "ALTER TABLE order_items ADD COLUMN IF NOT EXISTS commission NUMERIC(12,2) NOT NULL DEFAULT 0",     # what the marketplace keeps
+    "ALTER TABLE order_items ADD COLUMN IF NOT EXISTS seller_amount NUMERIC(12,2) NOT NULL DEFAULT 0",  # what the trader receives
+    "ALTER TABLE order_items ADD COLUMN IF NOT EXISTS delivery_code VARCHAR(24)",                       # the one-time code inside the QR
+    "ALTER TABLE order_items ADD COLUMN IF NOT EXISTS code_scanned_at TIMESTAMPTZ",
+    "ALTER TABLE order_items ADD COLUMN IF NOT EXISTS delivered_at TIMESTAMPTZ",
+    "ALTER TABLE order_items ADD COLUMN IF NOT EXISTS released_at TIMESTAMPTZ",
+    # Lines that were already paid before escrow existed are treated as held (no commission was taken on them).
+    "UPDATE order_items oi SET escrow_status='held', seller_amount = oi.quantity * oi.unit_price "
+    "FROM orders o WHERE o.id = oi.order_id AND o.status = 'Paid' AND oi.escrow_status = 'unpaid'",
+    "CREATE UNIQUE INDEX IF NOT EXISTS idx_order_items_code ON order_items(delivery_code) WHERE delivery_code IS NOT NULL",
+    "CREATE INDEX IF NOT EXISTS idx_order_items_escrow ON order_items(trader_id, escrow_status)",
+    "CREATE UNIQUE INDEX IF NOT EXISTS idx_disputes_one_open ON disputes(order_item_id) WHERE status = 'open'",
+    "CREATE INDEX IF NOT EXISTS idx_payouts_trader ON payouts(trader_id, status)",
+    "CREATE INDEX IF NOT EXISTS idx_notifications_user ON notifications(user_id, id DESC)",
     "CREATE INDEX IF NOT EXISTS idx_products_deleted ON products(deleted_at) WHERE deleted_at IS NOT NULL",
     "CREATE INDEX IF NOT EXISTS idx_flash_deals_trader ON flash_deals(trader_id)",
     "CREATE INDEX IF NOT EXISTS idx_flash_deals_ends ON flash_deals(ends_at)",

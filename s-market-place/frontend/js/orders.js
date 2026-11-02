@@ -54,7 +54,10 @@ async function submitCheckout(event) {
     name: value("ship-name"), phone: value("ship-phone"), address: value("ship-address"),
     city: value("ship-city"), state: value("ship-state")
   };
-  const items = Object.entries(getGuestCart()).map(([id, quantity]) => ({ product_id: Number(id), quantity: Number(quantity) }));
+  // A cart key is a product id ("12") or a Fast Finger deal ("d5"); the server needs to know which.
+  const items = Object.entries(getGuestCart()).map(([key, quantity]) => isDealKey(key)
+    ? { deal_id: Number(key.slice(DEAL_PREFIX.length)), quantity: Number(quantity) }
+    : { product_id: Number(key), quantity: Number(quantity) });
 
   button.disabled = true;
   feedback.textContent = "Reserving your items…";
@@ -109,9 +112,14 @@ async function confirmPayment(reference) {
 function orderCardHTML(order) {
   const [label, css] = ORDER_STATUS[order.status] || [order.status, ""];
   const unpaid = order.status === "Awaiting payment";
-  const items = order.items.map(item => `
-    <li><span>${escapeHTML(item.name)} × ${item.quantity} <small>· ${escapeHTML(item.store_name)}</small></span>
-      <span>${order.status === "Paid" ? `<span class="badge">${escapeHTML(FULFILMENT[item.fulfilment_status] || item.fulfilment_status)}</span> ` : ""}${formatPrice(item.unit_price * item.quantity)}</span></li>`).join("");
+  const items = order.items.map(item => {
+    orderItems[item.id] = { ...item, order_id: order.id, order_status: order.status };     // remembered for the delivery sheet
+    return `<li>
+      <div class="order-item-row"><span>${escapeHTML(item.name)} × ${item.quantity} <small>· ${escapeHTML(item.store_name)}</small></span>
+        <span>${order.status === "Paid" ? `<span class="badge">${escapeHTML(FULFILMENT[item.fulfilment_status] || item.fulfilment_status)}</span> ` : ""}${formatPrice(item.unit_price * item.quantity)}</span></div>
+      ${escrowHTML(order, item)}
+    </li>`;
+  }).join("");
   return `
     <article class="order-card">
       <div class="order-head"><h3>Order #${order.id}</h3><span class="badge ${css}">${escapeHTML(label)}</span></div>
@@ -134,6 +142,7 @@ async function renderOrders() {
     return;
   }
   target.innerHTML = '<p class="muted">Loading your orders…</p>';
+  loadNotifications(document.getElementById("buyer-notifications"));      // e.g. "Your report was reviewed"
   try {
     const orders = await apiRequest("/api/orders");
     target.innerHTML = orders.length

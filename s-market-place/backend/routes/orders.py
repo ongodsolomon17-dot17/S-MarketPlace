@@ -60,24 +60,33 @@ def checkout():
     if any(len(ship[key]) > limit for key, limit in limits.items()):
         return jsonify(error='One of the delivery details is too long.'), 400
 
-    # --- validate the cart (merge duplicate lines of the same product)
+    # --- validate the cart. Each line is a product ({product_id}) or a Fast Finger deal ({deal_id}).
+    #     Duplicate lines of the same product/deal are merged.
     try:
-        quantities = {}
+        product_quantities, deal_quantities = {}, {}
         for item in items:
-            product_id, quantity = int(item['product_id']), int(item['quantity'])
+            quantity = int(item['quantity'])
             if quantity < 1 or quantity > 1000:
                 raise ValueError
-            quantities[product_id] = quantities.get(product_id, 0) + quantity
+            if item.get('deal_id') is not None:
+                deal_id = int(item['deal_id'])
+                deal_quantities[deal_id] = deal_quantities.get(deal_id, 0) + quantity
+            else:
+                product_id = int(item['product_id'])
+                product_quantities[product_id] = product_quantities.get(product_id, 0) + quantity
     except (KeyError, TypeError, ValueError):
         return jsonify(error='Your cart contains an invalid item or quantity.'), 400
 
     maintenance.run_periodically(force=True)       # give back stock from expired orders first
     try:
         with db() as con:
-            total, locked = Decimal('0.00'), []
-            for product_id in sorted(quantities):    # always lock in the same order so two checkouts can't deadlock
-                quantity = quantities[product_id]
-                row = con.execute('SELECT id,name,price,stock,show_quantity FROM products WHERE id=%s AND is_active FOR UPDATE',
+            total = Decimal('0.00')
+            product_lines, deal_lines = [], []
+
+            # Lock products first, then deals, each in id order, so two checkouts can never wait on each other.
+            for product_id in sorted(product_quantities):
+                quantity = product_quantities[product_id]
+                row = con.execute('SELECT id,trader_id,name,price,stock,show_quantity FROM products WHERE id=%s AND is_active FOR UPDATE',
                                   (product_id,)).fetchone()
                 if not row:
                     raise CheckoutError('A product in your cart is no longer available.')
@@ -87,7 +96,19 @@ def checkout():
                     # The trader chose to show just "In stock", so don't reveal how many are left.
                     raise CheckoutError(f"There isn't enough stock of {row['name']} for that quantity. Please lower it.")
                 total += row['price'] * quantity
-                locked.append((row, quantity))
+                product_lines.append((row, quantity))
+
+            for deal_id in sorted(deal_quantities):
+                quantity = deal_quantities[deal_id]
+                # "live" is decided by the database clock: not sold, and the countdown has not reached zero.
+                row = con.execute('SELECT id,trader_id,title,price,quantity,(sold_at IS NULL AND ends_at > NOW()) AS live '
+                                  'FROM flash_deals WHERE id=%s FOR UPDATE', (deal_id,)).fetchone()
+                if not row or not row['live'] or row['quantity'] < 1:
+                    raise CheckoutError('A Fast Finger deal in your cart has ended or sold out.')
+                if row['quantity'] < quantity:
+                    raise CheckoutError(f"Only {row['quantity']} left of {row['title']} at the deal price.")
+                total += row['price'] * quantity                      # the DEAL price, never the original price
+                deal_lines.append((row, quantity))
 
             order = con.execute(
                 "INSERT INTO orders(buyer_id,total,status,shipping_name,shipping_phone,shipping_address,shipping_city,"
@@ -97,10 +118,17 @@ def checkout():
                  config.ORDER_HOLD_MINUTES)).fetchone()
             reference = f"SMP-{order['id']}-{secrets.token_hex(6)}"
             con.execute('UPDATE orders SET payment_reference=%s WHERE id=%s', (reference, order['id']))
-            for row, quantity in locked:                                  # reserve the stock for this order
-                con.execute('INSERT INTO order_items(order_id,product_id,product_name,quantity,unit_price) VALUES(%s,%s,%s,%s,%s)',
-                            (order['id'], row['id'], row['name'], quantity, row['price']))
+
+            for row, quantity in product_lines:                       # reserve the stock for this order
+                con.execute('INSERT INTO order_items(order_id,product_id,trader_id,product_name,quantity,unit_price) VALUES(%s,%s,%s,%s,%s,%s)',
+                            (order['id'], row['id'], row['trader_id'], row['name'], quantity, row['price']))
                 con.execute('UPDATE products SET stock = stock - %s WHERE id=%s', (quantity, row['id']))
+            for row, quantity in deal_lines:                          # reserve the deal quantity; a deal with none left shows "Sold"
+                con.execute('INSERT INTO order_items(order_id,deal_id,trader_id,product_name,quantity,unit_price) VALUES(%s,%s,%s,%s,%s,%s)',
+                            (order['id'], row['id'], row['trader_id'], row['title'], quantity, row['price']))
+                con.execute('UPDATE flash_deals SET quantity = quantity - %s, '
+                            'sold_at = CASE WHEN quantity - %s <= 0 THEN COALESCE(sold_at, NOW()) ELSE sold_at END WHERE id=%s',
+                            (quantity, quantity, row['id']))
     except CheckoutError as error:
         return jsonify(error=error.message), error.status
     except psycopg.Error:
@@ -126,9 +154,14 @@ def my_orders():
     maintenance.run_periodically()
     with db() as con:
         orders = con.execute('SELECT * FROM orders WHERE buyer_id=%s ORDER BY id DESC LIMIT 50', (g.user['id'],)).fetchall()
-        items = con.execute("""SELECT oi.id, oi.order_id, oi.product_id, oi.product_name AS name, oi.quantity, oi.unit_price,
-                  oi.fulfilment_status, p.image, u.store_name
-               FROM order_items oi JOIN products p ON p.id = oi.product_id JOIN users u ON u.id = p.trader_id
+        items = con.execute("""SELECT oi.id, oi.order_id, oi.product_id, oi.deal_id, oi.product_name AS name, oi.quantity,
+                  oi.unit_price, oi.fulfilment_status, COALESCE(p.image, d.image, '') AS image, COALESCE(u.store_name, '') AS store_name,
+                  oi.escrow_status, (oi.delivery_code IS NOT NULL) AS has_code, (oi.code_scanned_at IS NOT NULL) AS scanned,
+                  (SELECT status FROM disputes WHERE order_item_id = oi.id ORDER BY id DESC LIMIT 1) AS dispute_status
+               FROM order_items oi
+               LEFT JOIN products p ON p.id = oi.product_id
+               LEFT JOIN flash_deals d ON d.id = oi.deal_id            -- NULL once a deal has been removed (the order line stays)
+               LEFT JOIN users u ON u.id = oi.trader_id
                WHERE oi.order_id = ANY(%s) ORDER BY oi.id""", ([o['id'] for o in orders],)).fetchall()
     by_order = defaultdict(list)
     for item in items:

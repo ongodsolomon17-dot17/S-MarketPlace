@@ -220,11 +220,14 @@ def my_sales():
     """Paid order lines for this trader's products, with the delivery details needed to ship them."""
     with db() as con:
         rows = con.execute("""SELECT oi.id AS item_id, oi.order_id, oi.product_name, oi.quantity, oi.unit_price, oi.fulfilment_status,
+                  oi.escrow_status, oi.seller_amount, (oi.delivery_code IS NOT NULL) AS has_code,
+                  (oi.code_scanned_at IS NOT NULL) AS scanned,
                   o.paid_at, o.shipping_name, o.shipping_phone, o.shipping_address, o.shipping_city, o.shipping_state
-               FROM order_items oi JOIN orders o ON o.id = oi.order_id JOIN products p ON p.id = oi.product_id
-               WHERE p.trader_id = %s AND o.status = 'Paid' ORDER BY o.paid_at DESC, oi.id DESC LIMIT 200""",
+               FROM order_items oi JOIN orders o ON o.id = oi.order_id
+               WHERE oi.trader_id = %s AND o.status = 'Paid' ORDER BY o.paid_at DESC, oi.id DESC LIMIT 200""",
                            (g.user['id'],)).fetchall()
-    lines = [{**dict(row), 'unit_price': float(row['unit_price']), 'paid_at': iso(row['paid_at'])} for row in rows]
+    lines = [{**dict(row), 'unit_price': float(row['unit_price']), 'seller_amount': float(row['seller_amount']),
+              'paid_at': iso(row['paid_at'])} for row in rows]
     total = sum(Decimal(str(line['unit_price'])) * line['quantity'] for line in lines)
     return jsonify(orders=lines, total_sales=float(total))
 
@@ -237,9 +240,10 @@ def update_delivery_status(item_id):
     if status not in {'Processing', 'Shipped', 'Delivered'}:
         return jsonify(error='Choose Processing, Shipped or Delivered.'), 400
     with db() as con:
-        row = con.execute("""UPDATE order_items oi SET fulfilment_status=%s FROM orders o, products p
-               WHERE oi.id=%s AND o.id=oi.order_id AND p.id=oi.product_id AND p.trader_id=%s AND o.status='Paid'
-               RETURNING oi.id""", (status, item_id, g.user['id'])).fetchone()
+        row = con.execute("""UPDATE order_items oi SET fulfilment_status=%s,
+                      delivered_at = CASE WHEN %s = 'Delivered' THEN COALESCE(oi.delivered_at, NOW()) ELSE oi.delivered_at END
+               FROM orders o WHERE oi.id=%s AND o.id=oi.order_id AND oi.trader_id=%s AND o.status='Paid'
+               RETURNING oi.id""", (status, status, item_id, g.user['id'])).fetchone()
     if not row:
         return jsonify(error='Order line not found.'), 404
     return jsonify(message=f'Marked as {status.lower()}.')

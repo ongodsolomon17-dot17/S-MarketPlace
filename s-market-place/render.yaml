@@ -27,3 +27,11 @@ services:
         sync: false
       - key: ORDER_HOLD_MINUTES    # how long an unpaid order keeps its items reserved
         value: "30"
+      - key: COMMISSION_PERCENT    # the share of each sale S-Market Place keeps (0 = none, max 50)
+        value: "0"
+      - key: ADMIN_USER_IDS        # YOUR account id (see Settings after you register). "0" means nobody is admin yet.
+        value: "0"
+      - key: MIN_PAYOUT            # the smallest payout a trader can request, in naira
+        value: "1000"
+      - key: AUTO_RELEASE_DAYS     # 0 = money is released only when the buyer confirms (or you decide a dispute)
+        value: "0"

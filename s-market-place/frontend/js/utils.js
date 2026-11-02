@@ -112,3 +112,22 @@ function refreshSlashPreview(prefix) {
     ? "Enter the original price and the percent off to see the new price."
     : `${result.percent}% off ${formatPrice(result.original)} = ${formatPrice(result.price)}`;
 }
+
+/* ----------------------------------------------------------------------------
+   Loading big helper scripts only when they are needed
+   ---------------------------------------------------------------------------- */
+const loadedScripts = {};
+
+/** Load a script file once, on demand (the QR libraries are large, so they are not loaded for every visitor). */
+function loadScript(src) {
+  if (!loadedScripts[src]) {
+    loadedScripts[src] = new Promise((resolve, reject) => {
+      const script = document.createElement("script");
+      script.src = src;
+      script.onload = resolve;
+      script.onerror = () => { delete loadedScripts[src]; reject(new Error("Could not load the QR tools. Check your connection and try again.")); };
+      document.head.appendChild(script);
+    });
+  }
+  return loadedScripts[src];
+}

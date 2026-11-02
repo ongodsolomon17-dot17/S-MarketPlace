@@ -1,3 +1,120 @@
+# Update v6: Escrow, delivery QR, disputes, payouts
+
+## The big idea
+
+A buyer's payment is no longer "just yours". It is **held in escrow**, and the trader is **credited only after the buyer
+confirms delivery**. The flow, exactly as you described:
+
+1. **Buyer pays.** The money lands in your Paystack account (that is the escrow), and the site records, for every item, what
+   belongs to the trader (the sale minus your commission). The trader gets a **notification**: "payment received, held in
+   escrow, you will be credited when the buyer confirms delivery".
+2. **Trader makes a one-time QR** for each item (button **Delivery QR** on the order row) and sends it to the delivery person
+   (Share / Download, or read the code out). The QR shows the item name and order number.
+3. **Buyer receives the package**, opens the item in **My orders → Confirm delivery**, and either
+   - taps **Scan package QR** (or types the code if the camera fails) → "Package confirmed" → taps **Received**, or
+   - taps **Report a problem** (before scanning): a reason, a text, and **up to 2 photos**.
+4. **Received** → the trader's money moves from escrow to their **available balance**.
+   **Report a problem** → the money stays **on hold** until you (the admin) decide: pay the seller, or refund the buyer.
+5. The trader adds their **bank details** (Settings → Payout account, checked with the bank), taps **Request payout**, and you
+   send the money and tap **Mark as paid** in the **Admin** page.
+
+## IMPORTANT: what "credited" means today
+
+"Credited" means the money appears in the trader's **available balance inside the app**. The real money is in YOUR Paystack
+account, so **you send the bank transfer yourself** when a trader requests a payout (the Admin page shows the bank and account
+name), then tap Mark as paid. Refunds to buyers are also done by you in the Paystack dashboard (the Admin page reminds you).
+Automatic payouts (Paystack Transfers) are a later step.
+
+## Setting yourself up as admin (one time)
+
+1. Register your own account on the site (any type) and open **Settings**. It shows **Account ID** (a number, e.g. 7).
+2. On Render, set the environment variable **ADMIN_USER_IDS** to that number (it can list several, separated by commas) and redeploy.
+3. An **Admin** button then appears in Settings/Account. (It is by account id and NOT by email, because anyone can type any email at sign-up.)
+
+## New settings (Render environment variables)
+
+| Variable | Default | Meaning |
+|---|---|---|
+| `COMMISSION_PERCENT` | 0 | The share of each sale you keep (0 to 50). Fixed per sale at the moment of payment. |
+| `ADMIN_USER_IDS` | (none) | Your account id(s), see above. |
+| `MIN_PAYOUT` | 1000 | The smallest payout a trader can ask for (naira). |
+| `AUTO_RELEASE_DAYS` | 0 | 0 = never auto-release. If you set e.g. 7, an item the trader marked Delivered 7 days ago and nobody disputed is released automatically. |
+
+## v6 files: NEW
+
+| File | What it does |
+|---|---|
+| `backend/escrow_service.py` | The money rules: commission split, hold, release, refund, balances, notifications (read its top comment first) |
+| `backend/routes/delivery.py` | Trader's QR code; buyer's scan, Received and Report a problem |
+| `backend/routes/wallet.py` | Bank details, earnings, payout requests, notifications |
+| `backend/routes/admin.py` | Money overview, disputes, payouts (admin only) |
+| `frontend/js/delivery.js` | The Confirm delivery sheet, camera scanning, the dispute form, the trader's QR window |
+| `frontend/js/wallet.js` | Earnings panel, payout account form, notifications |
+| `frontend/js/admin.js` | The Admin page |
+| `frontend/js/vendor/` | Two small open-source libraries: `jsQR.js` (reads a QR with the camera) and `qrcode.js` (draws a QR). Loaded only when needed. |
+
+## v6 files: CHANGED
+
+| File | Where to look | What changed |
+|---|---|---|
+| `backend/database.py` | `SCHEMA` list, "escrow" lines | New tables `payout_accounts`, `payouts`, `disputes`, `notifications`; new `order_items` columns (`escrow_status`, `commission`, `seller_amount`, `delivery_code`, ...). Existing paid orders are treated as held. |
+| `backend/config.py` | "escrow and payouts" block | The four new settings |
+| `backend/auth.py` | `public_user`, `require_admin` | `is_admin` flag and the admin check |
+| `backend/order_service.py` | `settle_payment` | The moment a payment is confirmed, the money goes into escrow and traders are notified |
+| `backend/payment_service.py` | `paystack_banks`, `paystack_resolve_account` | Bank list and account-name check |
+| `backend/maintenance.py` | `run_periodically` | Optional auto-release |
+| `backend/routes/orders.py`, `routes/seller.py` | order lists | Escrow fields; "Delivered" stamps a time |
+| `backend/app.py` | `create_app` | Registers the three new route files |
+| `frontend/index.html` | search `earnings-panel`, `delivery-overlay`, `dispute-overlay`, `qr-overlay`, `page-admin` | Earnings and notifications panels, the three pop-ups, the admin page |
+| `frontend/js/orders.js` | `orderCardHTML` | Escrow note + "Confirm delivery" under each paid item |
+| `frontend/js/seller.js` | `loadTraderOrders`, `escrowLineText` | Escrow line + "Delivery QR" button on each order row |
+| `frontend/js/auth.js` | `renderSettings`, `renderAccount` | Payout account form, Account ID, Admin button |
+| `frontend/js/main.js`, `navigation.js`, `utils.js`, `css/style.css` | the new sections | Buttons, the admin page, `loadScript`, styles at the end |
+
+The database upgrades itself on the first start (nothing to run by hand).
+
+---
+
+# Update v5: Fast Finger deals can now be bought
+
+Before this update a Fast Finger deal could only be looked at. Now a buyer (or a guest) can add a live deal to the
+cart and check out, at the deal price, before the countdown ends.
+
+## How it works
+
+- A trader says **how many are available** at the deal price when posting (1 to 1000).
+- Live deals show **"N left"** and an **Add to cart** button (not for the trader who posted it).
+- The cart holds products and deals together. Deal lines show a **⚡ Fast Finger deal · ends …** tag.
+- At checkout the server re-checks everything: the deal is not sold, the countdown has not ended, and enough are left.
+  The order always uses the **deal price**, never the original price.
+- When the last one is bought, the deal becomes **Sold** by itself (and goes away 24 hours later, like any finished deal).
+- If an unpaid order is cancelled or expires, the quantity goes back and a deal that sold out by itself comes back to life.
+  A deal the trader marked "Sold" by hand stays sold.
+- A payment that arrives after the hold expired re-takes the deal quantity if it is still there, otherwise the order is
+  flagged "Refund needed" (same rule as products).
+- Order lines now remember **who sells them**, so a buyer's order history and the trader's "Orders to fulfil" keep working even
+  after the deal itself is deleted 24 hours later.
+
+## v5 files: CHANGED (nothing new)
+
+| File | Where to look | What changed |
+|---|---|---|
+| `backend/database.py` | `SCHEMA` list, the "Fast Finger deals can be bought" lines | `flash_deals.quantity` and `.sold_by_trader`; `order_items.deal_id` and `.trader_id`; `order_items.product_id` may now be empty |
+| `backend/routes/deals.py` | `DEAL_SELECT`, `list_deals`, `post_deal`, `mark_deal_sold` | Deals have a quantity; `GET /api/deals?ids=…` for the cart; "sold" also when nothing is left |
+| `backend/routes/orders.py` | `checkout()` and `my_orders()` | Checkout accepts `{deal_id, quantity}` lines next to `{product_id, quantity}`; order history reads the seller from the line |
+| `backend/order_service.py` | `cancel_unpaid_order`, `take_reserved_items_again` | Cancelling or a late payment handles deal lines too |
+| `backend/routes/seller.py` | `my_sales`, `update_delivery_status` | Trader lookups use the seller stored on each order line |
+| `frontend/js/cart.js` | whole file (rewritten) | The cart holds products ("12") and deals ("d5"); new `addDealToCart` |
+| `frontend/js/deals.js` | `dealCardHTML`, `saveDeal` | "N left", Add to cart button, quantity when posting |
+| `frontend/js/orders.js` | `submitCheckout` | Sends deal lines to the server |
+| `frontend/js/main.js` | near the `data-add-to-cart` handler | Wires the deal Add to cart button |
+| `frontend/index.html` | `deal-quantity` | "How many at this price?" field in the Post a deal pop-up |
+| `frontend/css/style.css` | the block at the END, "v5" | Small style for the cart tag |
+
+The database upgrades itself on the first start (nothing to run by hand).
+
+---
+
 # Update v4: Pause, Delete (30 days) and Cloudinary clean-up
 
 ## New features, in plain words

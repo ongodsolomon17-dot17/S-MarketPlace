@@ -3,7 +3,8 @@
    deals.js — FAST FINGER: short, time-limited price-slash deals.
 
    • Everyone can see the deals, each with a live countdown.
-   • Traders can post a deal, mark it "Sold", or delete it.
+   • Buyers (and guests) can add a live deal to their cart and check out before the countdown ends.
+   • Traders can post a deal (with how many are available), mark it "Sold", or delete it.
    • When the countdown reaches zero the deal shows "Ended". Ended and sold deals
      stay visible for 24 hours, then the SERVER deletes them (see backend/deal_service.py).
    ============================================================================ */
@@ -22,6 +23,10 @@ function dealCardHTML(deal) {
   // The countdown element carries the exact moment it ends (browser clock), so the ticker can just subtract.
   const endsAt = Date.now() + deal.seconds_left * 1000;
 
+  // Everyone except the trader who posted it can add a live deal to their cart.
+  const addButton = isOwner ? "" : `
+    <button class="small-add" type="button" data-add-deal-to-cart="${deal.id}" ${live ? "" : "disabled"}>${live ? "Add to cart" : label}</button>`;
+
   const timer = live
     ? `<span class="deal-timer" data-deal-end="${endsAt}">⏱ ${formatCountdown(deal.seconds_left)}</span>`
     : `<span class="deal-timer is-over">${label}</span>`;
@@ -38,6 +43,7 @@ function dealCardHTML(deal) {
         ${image
           ? `<img class="product-image" src="${escapeHTML(image)}" alt="${escapeHTML(deal.title)}" loading="lazy" onerror="this.style.display='none'">`
           : '<div class="image-placeholder">⚡<small>Fast Finger</small></div>'}
+        ${live ? `<span class="availability">${Number(deal.quantity)} left</span>` : ""}
         ${ribbonHTML(deal)}
         ${live ? "" : `<span class="deal-stamp">${label}</span>`}
       </div>
@@ -46,7 +52,7 @@ function dealCardHTML(deal) {
         <h3>${escapeHTML(deal.title)}</h3>
         <!-- two lines are visible; tapping the text shows the rest -->
         <p class="product-description" data-toggle-description>${escapeHTML(deal.description || "A limited-time price slash.")}</p>
-        <div class="product-bottom">${priceHTML(deal)}</div>
+        <div class="product-bottom">${priceHTML(deal)}${addButton}</div>
         <div class="deal-timer-row">${timer}</div>
         ${ownerButtons}
       </div>
@@ -140,6 +146,7 @@ async function saveDeal(event) {
     image: byId("deal-image").value.trim(),
     original_price: slash.original,
     price: slash.price,
+    quantity: Number(byId("deal-quantity").value),          // how many can be bought at the deal price
     duration_minutes: Number(byId("deal-duration").value)
   };
   try {

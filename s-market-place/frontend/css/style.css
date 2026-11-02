@@ -307,3 +307,64 @@ body { padding-bottom: 92px; }
 .paused-note{margin:10px 0 0;padding:10px 12px;border-radius:10px;background:rgba(243,227,166,.12);color:#f3e3a6;font-size:13px;line-height:1.5}
 .secondary-actions{margin-top:10px;padding-top:12px;border-top:1px solid rgba(255,255,255,.14)}
 #deleted-panel > .muted{margin:0 0 10px;font-size:13px;line-height:1.5}
+
+
+/* ---- v5: Fast Finger deals in the cart ---- */
+.cart-deal-tag{display:block;margin-top:4px;color:var(--gold);font-size:12px;font-weight:700}
+.deal-card .product-bottom{gap:10px}
+
+
+/* ============================================================================
+   v6: escrow, delivery QR, disputes, earnings, notifications, admin
+   ============================================================================ */
+
+/* ---- "My orders": each item has its own escrow note and buttons ---- */
+.order-items li{display:block}
+.order-item-row{display:flex;justify-content:space-between;gap:12px}
+.item-escrow{margin-top:8px;display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.escrow-note{margin:0;font-size:13px;line-height:1.5;color:var(--muted)}
+.escrow-note.ok{color:#9be2b0}.escrow-note.warn{color:#ffd58a}
+.primary-button.small{padding:8px 14px;font-size:13px}
+@media(max-width:700px){.order-item-row{flex-direction:column;gap:4px}}
+
+/* ---- delivery sheet + scanner ---- */
+.scanner-box{text-align:center}
+.scanner-box video{width:100%;max-height:300px;border-radius:14px;background:#000;object-fit:cover}
+.manual-code{margin-top:14px;font-size:14px}
+.manual-code summary{cursor:pointer;color:var(--gold);font-weight:600}
+.manual-code input{margin:10px 0}
+
+/* ---- dispute form: two photo boxes ---- */
+.photo-pair{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:6px}
+.photo-box{padding:10px;border:1px dashed rgba(216,183,122,.6);border-radius:12px}
+.photo-box label{margin-top:0!important;font-size:12px}
+@media(max-width:480px){.photo-pair{grid-template-columns:1fr}}
+
+/* ---- the trader's QR ---- */
+.qr-box{width:min(280px,80%);margin:6px auto;padding:10px;background:#fff;border-radius:14px}
+.qr-box svg{display:block;width:100%;height:auto}
+.qr-name{margin:10px 0 0;text-align:center;font-weight:700}
+.qr-code{margin:6px 0;text-align:center;font-family:ui-monospace,monospace;font-size:18px;letter-spacing:1px;color:var(--gold)}
+
+/* ---- earnings ---- */
+.earn-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:10px}
+.earn-box{padding:12px 14px;border:1px solid rgba(216,183,122,.35);border-radius:14px;background:rgba(255,255,255,.05)}
+.earn-box.is-strong{background:rgba(216,183,122,.16);border-color:var(--gold)}
+.earn-box span{display:block;font-size:12px;color:var(--muted)}
+.earn-box strong{display:block;margin:4px 0;font-size:20px}
+.earn-box small{display:block;font-size:11px;color:#d9c7e0;line-height:1.4}
+.earn-note{margin:4px 0 10px;font-size:13px;line-height:1.5}
+.mini-title{margin:16px 0 6px;font-size:14px}
+.payout-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(255,255,255,.12);font-size:13px}
+.escrow-line{display:block;margin-top:6px;color:var(--gold)!important}
+
+/* ---- notifications ---- */
+.notice{padding:10px 12px;margin-bottom:8px;border-radius:12px;background:rgba(255,255,255,.05);border-left:3px solid transparent}
+.notice.is-new{border-left-color:var(--gold);background:rgba(216,183,122,.12)}
+.notice p{margin:4px 0;font-size:13px;line-height:1.5}
+.notice small{color:#d9c7e0;font-size:11px}
+.notif-badge{display:inline-block;min-width:20px;padding:1px 7px;border-radius:999px;background:var(--gold);color:#24102d;font-size:12px;font-weight:800;text-align:center;vertical-align:middle}
+
+/* ---- admin ---- */
+.evidence-row{display:flex;flex-wrap:wrap;gap:10px;margin:10px 0}
+.evidence{width:120px;height:120px;object-fit:cover;border-radius:10px;border:1px solid rgba(255,255,255,.2)}

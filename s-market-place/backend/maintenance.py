@@ -5,6 +5,7 @@ import time
 from flask import current_app
 
 import deal_service
+import escrow_service
 import feed
 import image_service
 import order_service
@@ -35,6 +36,7 @@ def run_periodically(force=False, background=True):
             order_service.release_expired_orders(con)
             deal_service.purge_old_deals(con)
             product_service.purge_deleted_products(con)
+            escrow_service.auto_release(con)
             if now - _last_purge > 3600:
                 _last_purge = now
                 feed.purge_old_interactions(con)

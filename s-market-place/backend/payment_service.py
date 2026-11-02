@@ -36,3 +36,22 @@ def webhook_signature_is_valid(raw_body, signature):
     """Check that a webhook call really came from Paystack (HMAC-SHA512 of the body with our secret key)."""
     expected = hmac.new(config.PAYSTACK_SECRET_KEY.encode(), raw_body, hashlib.sha512).hexdigest()
     return hmac.compare_digest(signature.encode(), expected.encode())
+
+
+def paystack_banks():
+    """The list of Nigerian banks Paystack supports: [{'name': ..., 'code': ...}, ...]."""
+    response = requests.get(f'{PAYSTACK_API}/bank', params={'country': 'nigeria', 'perPage': 200}, headers=_headers(), timeout=15)
+    body = response.json()
+    if not response.ok or not body.get('status'):
+        raise RuntimeError(body.get('message', 'Paystack could not list the banks'))
+    return [{'name': bank['name'], 'code': bank['code']} for bank in body['data'] if bank.get('code')]
+
+
+def paystack_resolve_account(account_number, bank_code):
+    """Ask Paystack who owns a bank account. Returns the account holder's name, or None if it does not exist."""
+    response = requests.get(f'{PAYSTACK_API}/bank/resolve', params={'account_number': account_number, 'bank_code': bank_code},
+                            headers=_headers(), timeout=15)
+    body = response.json()
+    if not response.ok or not body.get('status'):
+        return None
+    return body['data'].get('account_name')

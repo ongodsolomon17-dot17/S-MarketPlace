@@ -16,6 +16,9 @@
   <script src="/js/cart.js" defer></script>
   <script src="/js/products.js" defer></script>
   <script src="/js/deals.js" defer></script>
+  <script src="/js/wallet.js" defer></script>
+  <script src="/js/delivery.js" defer></script>
+  <script src="/js/admin.js" defer></script>
   <script src="/js/auth.js" defer></script>
   <script src="/js/seller.js" defer></script>
   <script src="/js/orders.js" defer></script>
@@ -134,12 +137,24 @@
         <p>Add products, keep your stock up to date and follow your orders.</p>
         <div class="hero-actions">
           <button class="primary-button" type="button" data-open-product-editor>+ Add product</button>
-          <button class="outline-button" type="button" data-page-link="deals"><img src="icons/fast-finger-icon.png" alt="⚡" height="20" width="20"> Fast Finger</button>
+          <button class="outline-button" type="button" data-page-link="deals">⚡ Fast Finger</button>
           <button class="outline-button" type="button" data-page-link="settings">⚙ Settings</button>
         </div>
       </section>
 
       <div class="dashboard-layout stacked">
+        <!-- Money: held in escrow until the buyer confirms delivery, then available to withdraw -->
+        <div class="panel-list" id="earnings-panel">
+          <h2>Earnings</h2>
+          <div class="earn-grid" id="earnings-grid"><p class="muted">Loading…</p></div>
+          <p class="muted earn-note" id="earnings-note"></p>
+          <div class="modal-actions" id="earnings-actions"></div>
+          <div id="payout-history"></div>
+        </div>
+        <div class="panel-list" id="notifications-panel" hidden>
+          <h2>Notifications <span class="notif-badge" id="notif-badge" hidden></span></h2>
+          <div id="trader-notifications" data-notification-list></div>
+        </div>
         <div class="panel-list">
           <h2>Your listed products</h2>
           <div id="trader-own-products"><p class="muted">Loading your products…</p></div>
@@ -163,6 +178,7 @@
         <p class="eyebrow">YOUR PURCHASES</p><h1>My orders</h1>
         <p>Track payment and delivery for everything you have ordered.</p>
       </section>
+      <div id="buyer-notifications" class="panel-list" hidden><h2>Notifications</h2><div data-notification-list></div></div>
       <div id="orders-content" class="orders-content"></div>
     </section>
 
@@ -176,6 +192,13 @@
         <div id="deals-actions" class="hero-actions"></div>
       </section>
       <div class="product-grid" id="deals-grid"></div>
+    </section>
+
+    <!-- ============================== ADMIN (only for the marketplace owner) ============================== -->
+    <section class="page-panel" id="page-admin" data-page="admin" hidden>
+      <section class="page-intro"><p class="eyebrow">MARKETPLACE OWNER</p><h1>Admin</h1>
+        <p>Where the money is, disputes to decide, and trader payouts to send.</p></section>
+      <div id="admin-content" class="orders-content"></div>
     </section>
 
     <!-- ============================== ABOUT ============================== -->
@@ -211,7 +234,7 @@
   <!-- ============================== BOTTOM MENU ============================== -->
   <nav class="bottom-nav" aria-label="Main navigation">
     <button type="button" class="nav-item is-current" data-page-link="home"><span class="nav-symbol"><img src="/icons/home-icon-circle.png" alt="🏠" height="30" width="30"></span><span>Marketplace</span></button>
-    <button type="button" class="nav-item" data-page-link="deals"><span class="nav-symbol"><img src="icons/fast-finger-icon.png" alt="⚡" height="30" width="30"></span><span>Fast Finger</span></button>
+    <button type="button" class="nav-item" data-page-link="deals"><span class="nav-symbol"><svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor" aria-hidden="true"><path d="M13 2 4 14h6l-1 8 9-12h-6z"/></svg></span><span>Fast Finger</span></button>
     <button type="button" class="nav-item" data-page-link="cart"><span class="nav-symbol"><img src="/icons/trolley.png" alt="🛒" height="30" width="30"></span><span>Cart</span></button>
     <button type="button" class="nav-item" data-page-link="about"><span class="nav-symbol"><img src="/icons/about-us-icon-circle.png" alt="" height="30" width="30"></span><span>About</span></button>
     <!-- Traders land on the add-item screen from here; the label becomes "My shop" for them -->
@@ -373,7 +396,9 @@
         </div>
         <p class="price-preview" id="deal-preview"></p>
 
-        <label for="deal-duration">How long should the deal run?</label>
+        <div class="form-two-columns">
+          <div><label for="deal-quantity">How many at this price?</label><input id="deal-quantity" type="number" min="1" max="1000" step="1" value="1" required></div>
+          <div><label for="deal-duration">Runs for</label>
         <select id="deal-duration">
           <option value="30">30 minutes</option>
           <option value="60" selected>1 hour</option>
@@ -381,7 +406,8 @@
           <option value="360">6 hours</option>
           <option value="720">12 hours</option>
           <option value="1440">24 hours</option>
-        </select>
+        </select></div>
+        </div>
 
         <label for="deal-image">Image URL (optional)</label>
         <input id="deal-image" type="url" placeholder="https://...">
@@ -394,6 +420,62 @@
         </div>
         <p class="form-feedback" id="deal-feedback" role="status"></p>
       </form>
+    </section>
+  </div>
+
+  <!-- ============================== BUYER: CONFIRM DELIVERY (scan the package QR, then "Received") ============================== -->
+  <div class="auth-overlay" id="delivery-overlay" hidden>
+    <div class="auth-backdrop" data-close-delivery></div>
+    <section class="auth-card" role="dialog" aria-modal="true" aria-labelledby="delivery-title">
+      <button class="auth-close" type="button" data-close-delivery aria-label="Close">×</button>
+      <p class="eyebrow">YOUR ORDER</p>
+      <h2 id="delivery-title">Confirm delivery</h2>
+      <div id="delivery-content"></div>
+    </section>
+  </div>
+
+  <!-- ============================== BUYER: REPORT A PROBLEM (text + up to 2 photos) ============================== -->
+  <div class="auth-overlay" id="dispute-overlay" hidden>
+    <div class="auth-backdrop" data-close-dispute></div>
+    <section class="auth-card" role="dialog" aria-modal="true" aria-labelledby="dispute-title">
+      <button class="auth-close" type="button" data-close-dispute aria-label="Close">×</button>
+      <p class="eyebrow">REPORT A PROBLEM</p>
+      <h2 id="dispute-title">What went wrong?</h2>
+      <p class="auth-intro" id="dispute-item"></p>
+      <form id="dispute-form">
+        <label for="dispute-reason">Problem</label>
+        <select id="dispute-reason" required>
+          <option value="">Choose…</option>
+          <option value="not_received">Item not received</option>
+          <option value="damaged">Item arrived damaged</option>
+          <option value="not_as_described">Not as described</option>
+          <option value="wrong_item">Wrong item</option>
+          <option value="return_request">I want to return it</option>
+        </select>
+        <label for="dispute-details">Tell us what happened</label>
+        <textarea id="dispute-details" rows="4" minlength="10" maxlength="1000" required placeholder="Describe the problem (at least 10 characters)"></textarea>
+        <div class="photo-pair">
+          <div class="photo-box"><label for="dispute-photo1">Photo 1 (optional)</label><input id="dispute-photo1" type="file" accept="image/png,image/jpeg,image/webp"></div>
+          <div class="photo-box"><label for="dispute-photo2">Photo 2 (optional)</label><input id="dispute-photo2" type="file" accept="image/png,image/jpeg,image/webp"></div>
+        </div>
+        <p class="muted">While we review your report, your payment stays on hold and the seller is not paid.</p>
+        <div class="modal-actions">
+          <button class="primary-button" type="submit" id="dispute-submit">Send report</button>
+          <button class="outline-button" type="button" data-close-dispute>Cancel</button>
+        </div>
+        <p class="form-feedback" id="dispute-feedback" role="status"></p>
+      </form>
+    </section>
+  </div>
+
+  <!-- ============================== TRADER: DELIVERY QR (give it to whoever delivers the item) ============================== -->
+  <div class="auth-overlay" id="qr-overlay" hidden>
+    <div class="auth-backdrop" data-close-qr></div>
+    <section class="auth-card" role="dialog" aria-modal="true" aria-labelledby="qr-title">
+      <button class="auth-close" type="button" data-close-qr aria-label="Close">×</button>
+      <p class="eyebrow">DELIVERY QR</p>
+      <h2 id="qr-title">Package QR</h2>
+      <div id="qr-content"></div>
     </section>
   </div>
 

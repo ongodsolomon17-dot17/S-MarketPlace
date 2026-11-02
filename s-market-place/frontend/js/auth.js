@@ -169,6 +169,7 @@ function renderAccount() {
         ? '<button class="primary-button" type="button" data-page-link="trader-dashboard">Add an item</button>'
         : '<button class="primary-button" type="button" data-page-link="orders">My orders</button><button class="outline-button" type="button" data-page-link="cart">Go to cart</button>'}
       <button class="outline-button" type="button" data-page-link="settings">⚙ Settings</button>
+      ${currentUser.is_admin ? '<button class="outline-button" type="button" data-page-link="admin">🛠 Admin</button>' : ""}
       <button class="text-button" type="button" data-logout>Log out</button>
     </div>`;
 }
@@ -184,7 +185,7 @@ function renderSettings() {
   target.innerHTML = `
     <div class="profile-summary">${avatarHTML(user)}
       <div><h2>${escapeHTML(user.first_name)} ${escapeHTML(user.last_name)}</h2>
-        <p><strong>${trader ? "Trader account" : "Buyer account"}</strong> · @${escapeHTML(user.username)}</p></div>
+        <p><strong>${trader ? "Trader account" : "Buyer account"}</strong> · @${escapeHTML(user.username)} · Account ID ${user.id}</p></div>
     </div>
 
     <form id="profile-edit-form" class="panel-form">
@@ -208,6 +209,8 @@ function renderSettings() {
       <p id="profile-feedback" class="form-feedback" role="status"></p>
     </form>
 
+    ${trader ? payoutFormHTML() : ""}
+
     <form id="password-form" class="panel-form">
       <h3>Change password</h3>
       <label for="current-password">Current password</label>
@@ -220,8 +223,10 @@ function renderSettings() {
 
     <div class="hero-actions">
       <button class="outline-button" type="button" data-page-link="${trader ? "trader-dashboard" : "account"}">← Back</button>
+      ${user.is_admin ? '<button class="outline-button" type="button" data-page-link="admin">🛠 Admin</button>' : ""}
       <button class="text-button" type="button" data-logout>Log out</button>
     </div>`;
+  if (trader) initPayoutAccountForm();                    // load the bank list and the saved account
   document.getElementById("profile-edit-form").addEventListener("submit", saveProfile);
   document.getElementById("password-form").addEventListener("submit", changePassword);
 }
