@@ -6,7 +6,7 @@ html{scroll-behavior:smooth}
 body {
   background-color: #183b42;
   background-image:
-    radial-gradient(ellipse at 25% 40%, rgba(183, 5, 150, 0.716), transparent 48%),
+    radial-gradient(ellipse at 25% 40%, rgba(243, 33, 204, 0.716), transparent 48%),
     radial-gradient(ellipse at 72% 45%, rgba(109, 3, 130, 0.62), transparent 50%),
     radial-gradient(ellipse at 78% 82%, rgba(78, 4, 53, 0.505), transparent 40%);
   background-size: 140% 140%;
