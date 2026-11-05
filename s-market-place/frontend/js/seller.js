@@ -297,20 +297,23 @@ function deletedProductHTML(product) {
 /** Load the trader's live + paused products, and the products waiting out their 30 days. */
 async function loadOwnedProducts() {
   const target = document.getElementById("trader-own-products");
+  const managementTarget = document.getElementById("trader-management-products");
+  const productTargets = [target, managementTarget].filter(Boolean);
   const deletedPanel = document.getElementById("deleted-panel");
-  target.innerHTML = '<p class="muted">Loading your products…</p>';
+  productTargets.forEach(element => { element.innerHTML = '<p class="product-loading muted">Loading your products…</p>'; });
   try {
     const [products, deleted] = await Promise.all([apiRequest("/api/trader/products"), apiRequest("/api/trader/products/deleted")]);
+    if (!Array.isArray(products) || !Array.isArray(deleted)) throw new Error("The products response from the server was not in the expected format.");
     ownedProducts = Object.fromEntries(products.map(product => [product.id, product]));
-    target.innerHTML = products.length
+    const productMarkup = products.length
       ? products.map(ownedProductHTML).join("")
-      : '<p class="muted">You have not listed products yet. Tap “+ Add product” to start.</p>';
-    const managementProducts = document.getElementById("trader-management-products");
-    if (managementProducts) managementProducts.innerHTML = target.innerHTML;
+      : `<div class="owned-products-empty"><span class="empty-product-icon" aria-hidden="true">▧</span><h3>No products listed yet</h3><p>Your products will appear here after you add them to your shop.</p><button class="primary-button" type="button" data-open-create-panel>Add your first product</button></div>`;
+    productTargets.forEach(element => { element.innerHTML = productMarkup; });
     deletedPanel.hidden = deleted.length === 0;                      // only show the panel when there is something in it
     document.getElementById("trader-deleted-products").innerHTML = deleted.map(deletedProductHTML).join("");
   } catch (error) {
-    target.innerHTML = `<p class="muted">${escapeHTML(error.message)}</p>`;
+    const errorMarkup = `<div class="owned-products-error"><strong>Your products didn’t load</strong><p>${escapeHTML(error.message || "Check your connection and try again.")}</p><button class="outline-button" type="button" data-reload-owned-products>Try again</button></div>`;
+    productTargets.forEach(element => { element.innerHTML = errorMarkup; });
   }
 }
 

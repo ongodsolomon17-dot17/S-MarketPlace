@@ -638,6 +638,55 @@ body { color: var(--market-cream); }
 }
 #trader-own-products > .muted { grid-column: 1 / -1; }
 
+/* Trader listings: consistent product tiles in both the account centre and More. */
+#trader-own-products, #trader-management-products {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 218px), 1fr));
+  align-items: stretch;
+  gap: 15px;
+}
+.product-loading, .owned-products-empty, .owned-products-error { grid-column: 1 / -1; }
+.product-loading { margin: 5px 0; }
+.owned-product-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--ui-border);
+  border-radius: 18px;
+  color: var(--market-cream);
+  background: var(--ui-surface-raised);
+  box-shadow: 0 12px 28px rgba(5,10,22,.2);
+  transition: transform .18s ease, border-color .18s ease, box-shadow .18s ease;
+}
+.owned-product-card:hover { transform: translateY(-3px); border-color: rgba(88,211,210,.56); box-shadow: 0 17px 34px rgba(5,10,22,.28); }
+.owned-product-media { position: relative; display: grid; place-items: center; width: 100%; aspect-ratio: 1.35 / 1; overflow: hidden; background: linear-gradient(145deg,rgba(94,148,206,.2),rgba(51,38,77,.38)); }
+.owned-product-media img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.owned-product-placeholder { color: #b7d9ff; font-size: 3rem; font-weight: 300; }
+.owned-product-stock, .owned-product-card .paused-badge { position: absolute; top: 10px; padding: 6px 9px; border: 1px solid rgba(255,255,255,.18); border-radius: 999px; color: #fff; background: rgba(13,20,37,.82); backdrop-filter: blur(8px); font-size: .7rem; font-weight: 800; }
+.owned-product-stock { right: 10px; }
+.owned-product-card .paused-badge { left: 10px; }
+.owned-product-card-body { display: flex; flex: 1; flex-direction: column; align-items: flex-start; gap: 7px; padding: 14px; }
+.owned-product-card-body > small:first-child { color: #a9c9ec; font-size: .68rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+.owned-product-card-body > strong { display: -webkit-box; min-height: 2.7em; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-height: 1.35; }
+.owned-product-price { color: #f0c980; font-size: 1.08rem; font-weight: 900; }
+.owned-product-card-body > small:last-of-type { min-height: 1em; color: var(--ui-text-soft); font-size: .72rem; }
+.owned-product-card-body .outline-button { width: 100%; margin-top: auto; padding: 9px 12px; border-radius: 11px; }
+.owned-products-empty, .owned-products-error { display: grid; justify-items: center; gap: 9px; padding: clamp(22px,5vw,38px); text-align: center; border: 1px dashed var(--ui-border); border-radius: 17px; background: rgba(255,255,255,.035); }
+.empty-product-icon { color: #9dc8f5; font-size: 2.4rem; }
+.owned-products-empty h3, .owned-products-error strong { margin: 0; font-size: 1rem; }
+.owned-products-empty p, .owned-products-error p { max-width: 410px; margin: 0 0 5px; color: var(--ui-text-soft); font-size: .86rem; line-height: 1.5; }
+html[data-theme="light"] .owned-product-card { color: #192238; background: #fff; box-shadow: 0 12px 28px rgba(32,48,72,.1); }
+html[data-theme="light"] .owned-product-card-body > small:first-child { color: #526d91; }
+html[data-theme="light"] .owned-product-price { color: #78520f; }
+html[data-theme="light"] .owned-products-empty, html[data-theme="light"] .owned-products-error { background: rgba(255,255,255,.72); }
+@media (max-width: 520px) {
+  #trader-own-products, #trader-management-products { grid-template-columns: repeat(2, minmax(0,1fr)); gap: 10px; }
+  .owned-product-media { aspect-ratio: 1 / 1; }
+  .owned-product-card-body { gap: 6px; padding: 11px; }
+  .owned-product-card-body .outline-button { font-size: .76rem; }
+}
+
 /* Separate trader tools screens and the settings theme switch */
 .page-back-button { margin: 10px 0 0 max(0px, calc((100% - 1120px) / 2)); }
 .trader-finance-page, .trader-management-page { padding-bottom: 54px; }

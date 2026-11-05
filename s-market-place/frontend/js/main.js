@@ -72,6 +72,7 @@ document.addEventListener("click", async event => {
   /* ---- trader tools: products ---- */
   if (closest("[data-open-create-panel]")) { openTraderCreatePanel(); return; }
   if (closest("[data-close-trader-create]")) { closeTraderCreatePanel(); return; }
+  if (closest("[data-reload-owned-products]")) { await loadOwnedProducts(); return; }
   if (closest("[data-open-product-editor]")) { await openProductEditor(); return; }
   const editButton = closest("[data-edit-product]");
   if (editButton) { await openProductEditor(ownedProducts[editButton.dataset.editProduct]); return; }
