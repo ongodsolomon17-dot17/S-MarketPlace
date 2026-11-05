@@ -133,7 +133,7 @@
     <section class="page-panel trader-center" id="page-trader-dashboard" data-page="trader-dashboard" hidden>
       <section class="page-intro trader-center-intro">
         <p class="eyebrow">TRADER ACCOUNT CENTRE</p>
-        <div class="trader-profile-card">
+        <div class="trader-profile-card" id="trader-profile-card">
           <div class="trader-profile-avatar" id="trader-profile-avatar" aria-hidden="true"></div>
           <div class="trader-profile-copy">
             <p class="trader-profile-name" id="trader-profile-name">Your account</p>
@@ -142,6 +142,17 @@
           </div>
           <button class="outline-button trader-settings-button" type="button" data-page-link="settings">
             <img src="icons/settings.png" alt="" width="20" height="20"> Settings
+          </button>
+        </div>
+        <div class="trader-community-row" aria-label="Community features">
+          <button class="community-preview" type="button" disabled aria-label="Following feature coming soon">
+            <strong>—</strong><span>Following</span><small>Coming soon</small>
+          </button>
+          <button class="community-preview" type="button" disabled aria-label="Followers feature coming soon">
+            <strong>—</strong><span>Followers</span><small>Coming soon</small>
+          </button>
+          <button class="community-preview community-message-preview" type="button" disabled aria-label="Messages feature coming soon">
+            <strong>✉</strong><span>Messages</span><small>Coming soon</small>
           </button>
         </div>
         <p class="trader-intro-copy">Manage your shop, track earnings, respond to orders, and keep your products up to date.</p>
@@ -157,10 +168,9 @@
           <span class="shortcut-icon" aria-hidden="true">₦</span>
           <span class="shortcut-copy"><strong>Finance</strong><small>Balances and payout requests</small></span>
         </button>
-        <button class="trader-shortcut" type="button" data-page-link="deals">
-          <span class="shortcut-icon" aria-hidden="true">⚡</span>
-          <span class="shortcut-copy"><strong>Fast Finger</strong><small>Limited-time trader deals</small></span>
-          <span class="pro-badge" data-pro-badge="deals" hidden>✦ PRO</span>
+        <button class="trader-shortcut" type="button" data-scroll-to="trader-management-heading">
+          <span class="shortcut-icon" aria-hidden="true">▦</span>
+          <span class="shortcut-copy"><strong>More</strong><small>Products, orders and updates</small></span>
         </button>
       </nav>
 
@@ -170,6 +180,11 @@
           <span class="subscription-status-pill" id="trader-subscription-status">Checking…</span>
         </div>
         <div id="trader-subscription-content"><p class="muted">Loading your subscription…</p></div>
+      </section>
+
+      <section class="trader-management-heading" id="trader-management-heading">
+        <button class="management-back-button" type="button" data-scroll-to="trader-profile-card" aria-label="Back to account centre">←</button>
+        <div><p class="eyebrow">MORE</p><h2>Trade management</h2><p>Review shop updates, manage your listed products, and follow orders through delivery.</p></div>
       </section>
 
       <div class="dashboard-layout trader-workspace">

@@ -241,17 +241,27 @@ async function disableTraderSubscriptionAutoRenew() {
   }
 }
 
-/** One slim row: name, price, quantity left, and an Edit button. */
+/** Product tile: picture, price, stock and the existing Edit action. */
 function ownedProductHTML(product) {
   const quantity = product.stock > 0 ? `${product.stock} left` : "Sold out";
   const hint = product.show_quantity ? "" : " · buyers see “In stock”";
+  const image = product.image ? imageURL(product.image) : "";
   return `
-    <article class="owned-product compact">
-      <div class="owned-info">
-        <strong>${escapeHTML(product.name)}${product.is_paused ? ' <span class="paused-badge">Paused</span>' : ""}</strong>
-        <small>${formatPrice(product.price)} · ${quantity}${hint}</small>
+    <article class="owned-product-card">
+      <div class="owned-product-media">
+        ${image
+          ? `<img src="${escapeHTML(image)}" alt="${escapeHTML(product.name)}" loading="lazy" onerror="this.style.display='none'">`
+          : '<span class="owned-product-placeholder" aria-hidden="true">＋</span>'}
+        ${product.is_paused ? '<span class="paused-badge">Paused</span>' : ""}
+        <span class="owned-product-stock">${escapeHTML(quantity)}</span>
       </div>
-      <button type="button" class="outline-button" data-edit-product="${product.id}">Edit</button>
+      <div class="owned-product-card-body">
+        <small>${escapeHTML(product.category || "Product")}</small>
+        <strong>${escapeHTML(product.name)}</strong>
+        <span class="owned-product-price">${formatPrice(product.price)}</span>
+        <small>${escapeHTML(hint.trim())}</small>
+        <button type="button" class="outline-button" data-edit-product="${product.id}">Edit product</button>
+      </div>
     </article>`;
 }
 
