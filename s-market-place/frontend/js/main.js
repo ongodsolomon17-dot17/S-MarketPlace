@@ -12,6 +12,14 @@ document.addEventListener("click", async event => {
   const target = event.target;
   const closest = selector => target.closest(selector);
 
+  if (closest("[data-finance-category]")) { selectFinanceBalance(closest("[data-finance-category]").dataset.financeCategory); return; }
+  if (closest("[data-toggle-balance]")) { toggleFinanceBalanceVisibility(); return; }
+  if (closest("[data-finance-settings]")) {
+    showPage("settings");
+    window.setTimeout(() => document.getElementById("payout-form")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+    return;
+  }
+
   /* ---- page navigation ---- */
   const navLink = closest("[data-page-link]");
   if (navLink) { event.preventDefault(); showPage(navLink.dataset.pageLink); return; }

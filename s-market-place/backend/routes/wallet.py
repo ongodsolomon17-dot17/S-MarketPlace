@@ -88,11 +88,34 @@ def earnings():
         has_account = con.execute('SELECT 1 FROM payout_accounts WHERE trader_id=%s', (g.user['id'],)).fetchone() is not None
         history = con.execute('SELECT id, amount, status, reference, note, created_at, resolved_at FROM payouts '
                               'WHERE trader_id=%s ORDER BY id DESC LIMIT 10', (g.user['id'],)).fetchall()
+        weekly_sales = con.execute(
+            """SELECT to_char(days.day, 'YYYY-MM-DD') AS date,
+                      to_char(days.day, 'Dy') AS label,
+                      COALESCE(SUM(oi.seller_amount), 0) AS amount,
+                      COUNT(DISTINCT oi.order_id)::INTEGER AS orders
+               FROM generate_series(
+                    ((NOW() AT TIME ZONE 'Africa/Lagos')::date - 6)::timestamp,
+                    (NOW() AT TIME ZONE 'Africa/Lagos')::date::timestamp,
+                    INTERVAL '1 day'
+               ) AS days(day)
+               LEFT JOIN orders o
+                 ON timezone('Africa/Lagos', COALESCE(o.paid_at, o.created_at)) >= days.day
+                AND timezone('Africa/Lagos', COALESCE(o.paid_at, o.created_at)) < days.day + INTERVAL '1 day'
+                AND o.status = 'Paid'
+               LEFT JOIN order_items oi
+                 ON oi.order_id = o.id
+                AND oi.trader_id = %s
+                AND oi.escrow_status <> 'refunded'
+               GROUP BY days.day
+               ORDER BY days.day""",
+            (g.user['id'],)
+        ).fetchall()
     return jsonify(
         in_escrow=float(balances['in_escrow']), disputed=float(balances['disputed']), available=float(balances['available']),
         requested=float(balances['requested']), paid_out=float(balances['paid_out']),
         min_payout=float(config.MIN_PAYOUT), commission_percent=float(config.COMMISSION_PERCENT), has_account=has_account,
         can_request=has_account and balances['available'] >= config.MIN_PAYOUT and balances['requested'] == 0,
+        weekly_sales=[{**dict(day), 'amount': float(day['amount']), 'orders': int(day['orders'])} for day in weekly_sales],
         payouts=[{**dict(row), 'amount': float(row['amount']), 'created_at': iso(row['created_at']), 'resolved_at': iso(row['resolved_at'])}
                  for row in history])
 

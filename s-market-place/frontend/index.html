@@ -180,14 +180,38 @@
 
     <section class="page-panel trader-finance-page" id="page-trader-finance" data-page="trader-finance" hidden>
       <button class="management-back-button page-back-button" type="button" data-page-link="trader-dashboard" aria-label="Back to account centre">←</button>
-      <section class="page-intro"><p class="eyebrow">SHOP FINANCE</p><h1>Finance &amp; payouts</h1><p>See what is available, what is still held for delivery, and the status of your payout requests.</p></section>
+      <section class="page-intro finance-page-intro"><p class="eyebrow">SHOP FINANCE</p><h1>Finance &amp; payouts</h1><p>Track your earnings, see where your money is, and manage payouts to your bank.</p></section>
       <section class="panel-list finance-panel" id="earnings-panel" aria-labelledby="earnings-title">
-        <div class="panel-title-row"><div><p class="eyebrow">YOUR BALANCE</p><h2 id="earnings-title">Earnings overview</h2></div><span class="panel-icon" aria-hidden="true">₦</span></div>
-        <div class="earn-grid" id="earnings-grid"><p class="muted">Loading…</p></div>
+        <div class="finance-balance-card">
+          <div class="finance-balance-heading">
+            <div><p class="eyebrow">YOUR FINANCE</p><h2 id="earnings-title">Available balance</h2></div>
+            <div class="finance-heading-actions">
+              <button class="finance-icon-button" type="button" data-toggle-balance aria-label="Hide balance amounts" aria-pressed="false" title="Hide balance amounts"><span aria-hidden="true">◉</span></button>
+              <button class="finance-icon-button" type="button" data-finance-settings aria-label="Open finance settings" title="Finance settings"><span aria-hidden="true">⚙</span></button>
+            </div>
+          </div>
+          <p class="finance-primary-amount" id="finance-available-amount" data-money="0">Loading…</p>
+          <p class="finance-balance-caption">Ready to request to your verified payout account</p>
+          <div class="finance-category-tabs" role="group" aria-label="Other balance categories">
+            <button type="button" class="finance-category-button" data-finance-category="in_escrow" aria-pressed="true"><span>In escrow</span></button>
+            <button type="button" class="finance-category-button" data-finance-category="disputed" aria-pressed="false"><span>On hold</span></button>
+            <button type="button" class="finance-category-button" data-finance-category="paid_out" aria-pressed="false"><span>Paid out</span></button>
+          </div>
+          <div class="finance-selected-balance" aria-live="polite"><span id="finance-selected-label">In escrow</span><strong id="finance-selected-amount" data-money="0">Loading…</strong><small id="finance-selected-hint">Paid by buyers and held until delivery is confirmed.</small></div>
+        </div>
         <p class="muted earn-note" id="earnings-note"></p>
-        <div class="modal-actions" id="earnings-actions"></div>
-        <div id="payout-history"></div>
-        <div class="finance-support-card"><strong>Need to update your bank details?</strong><p>Manage your verified payout account in Settings.</p><button class="outline-button" type="button" data-page-link="settings">Open payout settings</button></div>
+        <div class="modal-actions finance-actions" id="earnings-actions"></div>
+
+        <section class="finance-analytics-card" aria-labelledby="finance-analytics-title">
+          <div class="finance-section-heading"><div><p class="eyebrow">LAST 7 DAYS</p><h2 id="finance-analytics-title">Weekly sales</h2><p>Value of paid orders after marketplace fees. Refunded items are excluded.</p></div><span class="finance-chart-mark" aria-hidden="true">↗</span></div>
+          <div id="finance-weekly-summary" class="finance-weekly-summary" aria-live="polite"></div>
+          <div id="finance-weekly-chart" class="finance-chart" role="img" aria-label="Weekly paid sales chart"><p class="muted">Loading your weekly sales…</p></div>
+        </section>
+
+        <section class="finance-payouts-card" aria-labelledby="payout-history-title">
+          <div class="finance-section-heading"><div><p class="eyebrow">PAYOUTS</p><h2 id="payout-history-title">Payout activity</h2><p>Follow recent requests and transfers to your bank.</p></div></div>
+          <div id="payout-history"></div>
+        </section>
       </section>
     </section>
 
