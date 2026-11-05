@@ -19,6 +19,14 @@ document.addEventListener("click", async event => {
     window.setTimeout(() => document.getElementById("payout-form")?.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
     return;
   }
+  if (closest("[data-finance-notifications-all]")) {
+    if (!currentUser || currentUser.role !== "trader") return;
+    showPage("trader-management");
+    const panel = document.getElementById("notifications-panel");
+    await loadNotifications(panel, 30);
+    panel?.scrollIntoView({ behavior: "smooth", block: "start" });
+    return;
+  }
 
   /* ---- page navigation ---- */
   const navLink = closest("[data-page-link]");

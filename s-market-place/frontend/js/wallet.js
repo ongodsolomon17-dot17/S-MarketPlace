@@ -149,6 +149,26 @@ async function loadEarnings() {
   }
 }
 
+async function loadFinanceNotifications() {
+  const list = document.getElementById("finance-notifications-list");
+  const badge = document.getElementById("finance-notif-badge");
+  if (!list || !badge || !currentUser || currentUser.role !== "trader") return;
+  try {
+    const { notifications, unread } = await apiRequest("/api/notifications");
+    badge.textContent = unread > 99 ? "99+" : String(unread);
+    badge.hidden = unread === 0;
+    list.innerHTML = notifications.length
+      ? notifications.slice(0, 3).map(note => `
+          <details class="finance-notice ${note.is_read ? "" : "is-unread"}">
+            <summary><span class="finance-notice-copy"><strong>${escapeHTML(note.title)}</strong><small>${escapeHTML(formatDate(note.created_at))}</small></span>${note.is_read ? "" : '<span class="finance-notice-new">New</span>'}</summary>
+            <p>${escapeHTML(note.body || "")}</p>
+          </details>`).join("")
+      : '<p class="muted finance-notifications-empty">No finance updates yet. Order and payout updates will appear here.</p>';
+  } catch (error) {
+    list.innerHTML = `<p class="muted finance-notifications-empty">${escapeHTML(error.message)}</p>`;
+  }
+}
+
 /** Ask for the whole available balance to be sent to the saved bank account. */
 async function requestPayout() {
   if (!confirm("Request a payout of your full available balance?")) return;
@@ -247,6 +267,9 @@ async function markNotificationsRead() {
 /** Reload whichever notification panel belongs to the signed-in user. */
 function refreshNotifications() {
   if (!currentUser) return;
-  if (currentUser.role === "trader") loadNotifications(document.getElementById("notifications-panel"));
+  if (currentUser.role === "trader") {
+    loadNotifications(document.getElementById("notifications-panel"), 30);
+    loadFinanceNotifications();
+  }
   else loadNotifications(document.getElementById("buyer-notifications"));
 }

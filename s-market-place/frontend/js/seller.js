@@ -127,13 +127,13 @@ function maybeShowDailySubscriptionReminder() {
 
 async function loadTraderFinance() {
   if (!currentUser || currentUser.role !== "trader") { openAuth("trader"); return; }
-  await loadEarnings();
+  await Promise.all([loadEarnings(), loadFinanceNotifications()]);
 }
 
 async function loadTraderManagement() {
   if (!currentUser || currentUser.role !== "trader") { openAuth("trader"); return; }
   await Promise.all([
-    loadNotifications(document.getElementById("notifications-panel")),
+    loadNotifications(document.getElementById("notifications-panel"), 30),
     loadTraderOrders(),
     loadOwnedProducts()
   ]);
