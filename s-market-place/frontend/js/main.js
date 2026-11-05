@@ -1,4 +1,5 @@
 "use strict";
+applyThemePreference();
 /* ============================================================================
    main.js — wires buttons to the functions in the other files, then starts the app.
 
@@ -69,6 +70,8 @@ document.addEventListener("click", async event => {
   if (closest("[data-logout]")) { await logout(); return; }
 
   /* ---- trader tools: products ---- */
+  if (closest("[data-open-create-panel]")) { openTraderCreatePanel(); return; }
+  if (closest("[data-close-trader-create]")) { closeTraderCreatePanel(); return; }
   if (closest("[data-open-product-editor]")) { await openProductEditor(); return; }
   const editButton = closest("[data-edit-product]");
   if (editButton) { await openProductEditor(ownedProducts[editButton.dataset.editProduct]); return; }
@@ -87,6 +90,8 @@ document.addEventListener("click", async event => {
     await disableTraderSubscriptionAutoRenew();
     return;
   }
+  const orderFilter = closest("[data-order-filter]");
+  if (orderFilter) { showTraderOrders(orderFilter.dataset.orderFilter); return; }
   const updateLine = closest("[data-update-item]");
   if (updateLine) { await updateOrderLine(updateLine.dataset.updateItem); return; }
 
@@ -188,6 +193,14 @@ document.getElementById("checkout-form").addEventListener("submit", submitChecko
 document.getElementById("pe-category").addEventListener("change", toggleCustomCategory);
 document.getElementById("pe-slash-toggle").addEventListener("change", togglePriceSlash);
 
+/* Theme choices in Settings apply immediately and persist on this device. */
+document.addEventListener("change", event => {
+  const choice = event.target.closest?.("[data-theme-choice]");
+  if (choice && choice.checked) {
+    saveThemePreference(choice.value);
+    showToast((choice.value === "light" ? "Light" : "Dark") + " theme selected.");
+  }
+});
 /* Price-slash inputs (product pop-up and deal pop-up): update the "= new price" line as the trader types. */
 document.addEventListener("input", event => {
   if (event.target.classList.contains("slash-input")) refreshSlashPreview(event.target.dataset.slash);

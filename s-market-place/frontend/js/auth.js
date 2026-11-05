@@ -247,6 +247,25 @@ function renderSettings() {
         <p><strong>${trader ? "Trader account" : "Buyer account"}</strong> · @${escapeHTML(user.username)} · Account ID ${user.id}</p></div>
     </div>
 
+    <section class="theme-preferences panel-form" aria-labelledby="theme-preferences-title">
+      <div class="theme-preferences-copy">
+        <p class="eyebrow">DISPLAY</p>
+        <h3 id="theme-preferences-title">Theme</h3>
+        <p>Choose the look that feels right. Your choice is saved on this device.</p>
+      </div>
+      <fieldset class="theme-options">
+        <legend>Choose a theme</legend>
+        <label class="theme-option">
+          <input type="radio" name="theme-preference" data-theme-choice value="dark" ${getThemePreference() === "dark" ? "checked" : ""}>
+          <span class="theme-choice-swatch theme-choice-dark" aria-hidden="true"></span><span>Dark</span>
+        </label>
+        <label class="theme-option">
+          <input type="radio" name="theme-preference" data-theme-choice value="light" ${getThemePreference() === "light" ? "checked" : ""}>
+          <span class="theme-choice-swatch theme-choice-light" aria-hidden="true"></span><span>Light</span>
+        </label>
+      </fieldset>
+    </section>
+
     <form id="profile-edit-form" class="panel-form">
       <h3>Edit your profile</h3>
       <label for="edit-first-name">First name</label>

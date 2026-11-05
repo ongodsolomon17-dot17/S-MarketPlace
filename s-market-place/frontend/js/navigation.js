@@ -6,7 +6,7 @@
 let activePage = "home";
 
 /* Which bottom-menu tab each screen belongs to (so the right tab stays highlighted). */
-const ACCOUNT_TAB_PAGES = new Set(["account", "settings", "trader-dashboard", "orders", "admin"]);
+const ACCOUNT_TAB_PAGES = new Set(["account", "settings", "trader-dashboard", "trader-finance", "trader-management", "orders", "admin"]);
 const HOME_TAB_PAGES = new Set(["home", "product", "store"]);
 
 function tabFor(page) {
@@ -40,6 +40,8 @@ function showPage(name, options = {}) {
   if (name === "account") renderAccount();
   if (name === "settings") renderSettings();
   if (name === "trader-dashboard") loadTraderDashboard();
+  if (name === "trader-finance") loadTraderFinance();
+  if (name === "trader-management") loadTraderManagement();
   if (name === "deals") renderDeals();
   if (name === "admin") renderAdmin();
 

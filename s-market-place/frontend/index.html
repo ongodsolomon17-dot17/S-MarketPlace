@@ -145,76 +145,79 @@
           </button>
         </div>
         <div class="trader-community-row" aria-label="Community features">
-          <button class="community-preview" type="button" disabled aria-label="Following feature coming soon">
-            <strong>—</strong><span>Following</span><small>Coming soon</small>
-          </button>
-          <button class="community-preview" type="button" disabled aria-label="Followers feature coming soon">
-            <strong>—</strong><span>Followers</span><small>Coming soon</small>
-          </button>
-          <button class="community-preview community-message-preview" type="button" disabled aria-label="Messages feature coming soon">
-            <strong>✉</strong><span>Messages</span><small>Coming soon</small>
-          </button>
+          <button class="community-preview" type="button" disabled aria-label="Following feature coming soon"><strong>—</strong><span>Following</span><small>Coming soon</small></button>
+          <button class="community-preview" type="button" disabled aria-label="Followers feature coming soon"><strong>—</strong><span>Followers</span><small>Coming soon</small></button>
+          <button class="community-preview community-message-preview" type="button" disabled aria-label="Messages feature coming soon"><strong>✉</strong><span>Messages</span><small>Coming soon</small></button>
         </div>
         <p class="trader-intro-copy">Manage your shop, track earnings, respond to orders, and keep your products up to date.</p>
       </section>
 
       <nav class="trader-shortcuts" aria-label="Trader account shortcuts">
-        <button class="trader-shortcut trader-shortcut-primary" type="button" data-open-product-editor>
+        <button class="trader-shortcut trader-shortcut-primary" type="button" data-open-create-panel>
           <span class="shortcut-icon" aria-hidden="true">＋</span>
-          <span class="shortcut-copy"><strong>Add a product</strong><small>List an item in your shop</small></span>
-          <span class="pro-badge" data-pro-badge="products" hidden>✦ PRO</span>
+          <span class="shortcut-copy"><strong>Add</strong><small>Add an item or a Fast Finger deal</small></span>
         </button>
-        <button class="trader-shortcut" type="button" data-scroll-to="earnings-panel">
+        <button class="trader-shortcut" type="button" data-page-link="trader-finance">
           <span class="shortcut-icon" aria-hidden="true">₦</span>
-          <span class="shortcut-copy"><strong>Finance</strong><small>Balances and payout requests</small></span>
+          <span class="shortcut-copy"><strong>Finance</strong><small>Earnings and payout requests</small></span>
         </button>
-        <button class="trader-shortcut" type="button" data-scroll-to="trader-management-heading">
+        <button class="trader-shortcut" type="button" data-page-link="trader-management">
           <span class="shortcut-icon" aria-hidden="true">▦</span>
-          <span class="shortcut-copy"><strong>More</strong><small>Products, orders and updates</small></span>
+          <span class="shortcut-copy"><strong>More</strong><small>Notifications, products and delivery</small></span>
         </button>
       </nav>
 
+      <section class="panel-list dashboard-products-panel" id="trader-products-panel" aria-labelledby="trader-products-title">
+        <div class="panel-title-row"><div><p class="eyebrow">YOUR SHOP</p><h2 id="trader-products-title">Products</h2></div><span class="panel-icon" aria-hidden="true">▦</span></div>
+        <p class="panel-supporting-copy">View your listings and edit existing products at any time.</p>
+        <div id="trader-own-products"><p class="muted">Loading your products…</p></div>
+      </section>
+
       <section class="panel-list subscription-panel" id="trader-subscription-panel" aria-labelledby="trader-subscription-title">
-        <div class="panel-title-row">
-          <div><p class="eyebrow">PRO ACCESS</p><h2 id="trader-subscription-title">Your subscription</h2></div>
-          <span class="subscription-status-pill" id="trader-subscription-status">Checking…</span>
-        </div>
+        <div class="panel-title-row"><div><p class="eyebrow">PRO ACCESS</p><h2 id="trader-subscription-title">Your subscription</h2></div><span class="subscription-status-pill" id="trader-subscription-status">Checking…</span></div>
         <div id="trader-subscription-content"><p class="muted">Loading your subscription…</p></div>
       </section>
+    </section>
 
-      <section class="trader-management-heading" id="trader-management-heading">
-        <button class="management-back-button" type="button" data-scroll-to="trader-profile-card" aria-label="Back to account centre">←</button>
-        <div><p class="eyebrow">MORE</p><h2>Trade management</h2><p>Review shop updates, manage your listed products, and follow orders through delivery.</p></div>
+    <section class="page-panel trader-finance-page" id="page-trader-finance" data-page="trader-finance" hidden>
+      <button class="management-back-button page-back-button" type="button" data-page-link="trader-dashboard" aria-label="Back to account centre">←</button>
+      <section class="page-intro"><p class="eyebrow">SHOP FINANCE</p><h1>Finance &amp; payouts</h1><p>See what is available, what is still held for delivery, and the status of your payout requests.</p></section>
+      <section class="panel-list finance-panel" id="earnings-panel" aria-labelledby="earnings-title">
+        <div class="panel-title-row"><div><p class="eyebrow">YOUR BALANCE</p><h2 id="earnings-title">Earnings overview</h2></div><span class="panel-icon" aria-hidden="true">₦</span></div>
+        <div class="earn-grid" id="earnings-grid"><p class="muted">Loading…</p></div>
+        <p class="muted earn-note" id="earnings-note"></p>
+        <div class="modal-actions" id="earnings-actions"></div>
+        <div id="payout-history"></div>
+        <div class="finance-support-card"><strong>Need to update your bank details?</strong><p>Manage your verified payout account in Settings.</p><button class="outline-button" type="button" data-page-link="settings">Open payout settings</button></div>
       </section>
+    </section>
 
-      <div class="dashboard-layout trader-workspace">
-        <section class="panel-list" id="earnings-panel" aria-labelledby="earnings-title">
-          <div class="panel-title-row"><div><p class="eyebrow">SHOP FINANCE</p><h2 id="earnings-title">Earnings &amp; payouts</h2></div><span class="panel-icon" aria-hidden="true">₦</span></div>
-          <div class="earn-grid" id="earnings-grid"><p class="muted">Loading…</p></div>
-          <p class="muted earn-note" id="earnings-note"></p>
-          <div class="modal-actions" id="earnings-actions"></div>
-          <div id="payout-history"></div>
-        </section>
-        <section class="panel-list" id="notifications-panel" hidden aria-labelledby="notifications-title">
-          <div class="panel-title-row"><div><p class="eyebrow">SHOP UPDATES</p><h2 id="notifications-title">Notifications <span class="notif-badge" id="notif-badge" hidden></span></h2></div><span class="panel-icon" aria-hidden="true">♢</span></div>
-          <div id="trader-notifications" data-notification-list></div>
-        </section>
-        <section class="panel-list dashboard-wide" id="trader-products-panel" aria-labelledby="trader-products-title">
-          <div class="panel-title-row"><div><p class="eyebrow">INVENTORY</p><h2 id="trader-products-title">Your listed products</h2></div><span class="panel-icon" aria-hidden="true">▦</span></div>
-          <p class="panel-supporting-copy">Your existing listings stay available to view and edit if your subscription expires.</p>
-          <div id="trader-own-products"><p class="muted">Loading your products…</p></div>
-        </section>
-        <section class="panel-list dashboard-wide" id="deleted-panel" hidden aria-labelledby="deleted-title">
-          <div class="panel-title-row"><div><p class="eyebrow">INVENTORY HISTORY</p><h2 id="deleted-title">Recently deleted</h2></div></div>
-          <p class="panel-supporting-copy">Deleted products and their pictures are permanently removed after 30 days. Restore a product before then to bring it back.</p>
-          <div id="trader-deleted-products"></div>
-        </section>
-        <section class="panel-list dashboard-wide" id="trader-orders-panel" aria-labelledby="trader-orders-title">
-          <div class="panel-title-row"><div><p class="eyebrow">ORDER MANAGEMENT</p><h2 id="trader-orders-title">Orders to fulfil</h2></div><span class="panel-icon" aria-hidden="true">⌑</span></div>
-          <p class="panel-supporting-copy">Keep buyers informed as you prepare and deliver their orders.</p>
-          <div id="trader-orders"><p class="muted">Loading orders…</p></div>
-        </section>
-      </div>
+    <section class="page-panel trader-management-page" id="page-trader-management" data-page="trader-management" hidden>
+      <button class="management-back-button page-back-button" type="button" data-page-link="trader-dashboard" aria-label="Back to account centre">←</button>
+      <section class="page-intro"><p class="eyebrow">MORE · TRADE MANAGEMENT</p><h1>Trade management</h1><p>Review shop updates, manage your available products, and keep orders moving through delivery.</p></section>
+      <nav class="management-feature-nav" aria-label="Trade management features">
+        <button type="button" class="management-feature-button" data-scroll-to="notifications-panel"><span class="management-feature-icon" aria-hidden="true">♢</span><strong>Latest notifications</strong><small>Order and account updates</small></button>
+        <button type="button" class="management-feature-button" data-scroll-to="trader-management-products-panel"><span class="management-feature-icon" aria-hidden="true">▣</span><strong>Available products</strong><small>View and edit listings</small></button>
+        <button type="button" class="management-feature-button" data-scroll-to="trader-orders-panel"><span class="management-feature-icon" aria-hidden="true">↗</span><strong>Delivery management</strong><small>Orders to fulfil and delivered</small></button>
+      </nav>
+      <section class="panel-list management-panel" id="notifications-panel" hidden aria-labelledby="notifications-title">
+        <div class="panel-title-row"><div><p class="eyebrow">LATEST UPDATES</p><h2 id="notifications-title">Notifications <span class="notif-badge" id="notif-badge" hidden></span></h2></div><span class="panel-icon" aria-hidden="true">♢</span></div>
+        <div id="trader-notifications" data-notification-list></div>
+      </section>
+      <section class="panel-list management-panel" id="trader-management-products-panel" aria-labelledby="management-products-title">
+        <div class="panel-title-row"><div><p class="eyebrow">INVENTORY</p><h2 id="management-products-title">Available products</h2></div><span class="panel-icon" aria-hidden="true">▣</span></div>
+        <div id="trader-management-products"><p class="muted">Loading your products…</p></div>
+      </section>
+      <section class="panel-list management-panel" id="deleted-panel" hidden aria-labelledby="deleted-title">
+        <div class="panel-title-row"><div><p class="eyebrow">INVENTORY HISTORY</p><h2 id="deleted-title">Recently deleted</h2></div></div>
+        <p class="panel-supporting-copy">Deleted products and their pictures are permanently removed after 30 days. Restore a product before then to bring it back.</p>
+        <div id="trader-deleted-products"></div>
+      </section>
+      <section class="panel-list management-panel" id="trader-orders-panel" aria-labelledby="trader-orders-title">
+        <div class="panel-title-row"><div><p class="eyebrow">DELIVERY MANAGEMENT</p><h2 id="trader-orders-title">Orders</h2></div><span class="panel-icon" aria-hidden="true">↗</span></div>
+        <p class="panel-supporting-copy">Update each order as you prepare and deliver it.</p>
+        <div id="trader-orders"><p class="muted">Loading orders…</p></div>
+      </section>
     </section>
 
     <!-- ============================== BUYER: MY ORDERS ============================== -->
@@ -389,6 +392,25 @@
   </div>
 
   <!-- ============================== PRODUCT POP-UP (add + edit) ============================== -->
+  <div class="auth-overlay" id="trader-create-overlay" hidden>
+    <div class="auth-backdrop" data-close-trader-create></div>
+    <section class="auth-card create-choice-card" role="dialog" aria-modal="true" aria-labelledby="trader-create-title">
+      <button class="auth-close" type="button" data-close-trader-create aria-label="Close">×</button>
+      <p class="eyebrow">YOUR SHOP</p>
+      <h2 id="trader-create-title">What would you like to add?</h2>
+      <p class="auth-intro">Choose an item listing or create a limited-time Fast Finger deal.</p>
+      <div class="create-action-grid">
+        <button class="create-action-card" type="button" data-open-product-editor>
+          <span class="create-action-icon"><img src="icons/add.png" alt="" width="42" height="42"></span>
+          <strong>Add item</strong><small>List a product in your shop</small>
+        </button>
+        <button class="create-action-card" type="button" data-open-deal-editor>
+          <span class="create-action-icon"><img src="icons/fast-finger-icon.png" alt="" width="42" height="42"></span>
+          <strong>Add Fast Finger</strong><small>Post a timed price deal</small>
+        </button>
+      </div>
+    </section>
+  </div>
   <div class="auth-overlay" id="product-overlay" hidden>
     <div class="auth-backdrop" data-close-product-editor></div>
     <section class="auth-card" role="dialog" aria-modal="true" aria-labelledby="product-editor-title">

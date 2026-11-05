@@ -64,18 +64,31 @@ async function loadTraderDashboard() {
   document.getElementById("trader-profile-avatar").innerHTML = avatarHTML(currentUser);
 
   const subscriptionTask = loadTraderSubscription();
-  const tasks = [
-    subscriptionTask,
-    loadEarnings(),
+  await Promise.all([subscriptionTask, loadOwnedProducts()]);
+}
+
+function openTraderCreatePanel() {
+  if (!currentUser || currentUser.role !== "trader") { openAuth("trader"); return; }
+  document.getElementById("trader-create-overlay").hidden = false;
+}
+
+function closeTraderCreatePanel() {
+  const panel = document.getElementById("trader-create-overlay");
+  if (panel) panel.hidden = true;
+}
+
+async function loadTraderFinance() {
+  if (!currentUser || currentUser.role !== "trader") { openAuth("trader"); return; }
+  await loadEarnings();
+}
+
+async function loadTraderManagement() {
+  if (!currentUser || currentUser.role !== "trader") { openAuth("trader"); return; }
+  await Promise.all([
     loadNotifications(document.getElementById("notifications-panel")),
     loadTraderOrders(),
     loadOwnedProducts()
-  ];
-  await Promise.all(tasks);
-  document.querySelector(".trader-workspace")?.classList.toggle(
-    "has-notifications",
-    !document.getElementById("notifications-panel").hidden
-  );
+  ]);
 }
 
 
@@ -289,6 +302,8 @@ async function loadOwnedProducts() {
     target.innerHTML = products.length
       ? products.map(ownedProductHTML).join("")
       : '<p class="muted">You have not listed products yet. Tap “+ Add product” to start.</p>';
+    const managementProducts = document.getElementById("trader-management-products");
+    if (managementProducts) managementProducts.innerHTML = target.innerHTML;
     deletedPanel.hidden = deleted.length === 0;                      // only show the panel when there is something in it
     document.getElementById("trader-deleted-products").innerHTML = deleted.map(deletedProductHTML).join("");
   } catch (error) {
@@ -325,6 +340,7 @@ function togglePriceSlash() {
 
 /** Open the pop-up. Pass a product to EDIT it, or nothing to ADD a new one. */
 async function openProductEditor(product = null) {
+  closeTraderCreatePanel();
   if (!product && !traderSubscriptionLoaded) await loadTraderSubscription();
   if (!product && !traderHasProAccess()) {
     showSubscriptionUpgrade("add products");
@@ -466,15 +482,12 @@ async function deleteEditingProduct() {
    ---------------------------------------------------------------------------- */
 async function loadTraderOrders() {
   const target = document.getElementById("trader-orders");
+  if (!target) return;
   target.innerHTML = '<p class="muted">Loading orders…</p>';
   try {
     const data = await apiRequest("/api/trader/orders");
     const summary = `<p class="muted">Total paid sales: <strong>${formatPrice(data.total_sales)}</strong></p>`;
-    if (!data.orders.length) {
-      target.innerHTML = summary + '<p class="muted">No paid orders yet. When a buyer pays, it appears here.</p>';
-      return;
-    }
-    target.innerHTML = summary + data.orders.map(line => `
+    const orderCards = data.orders.map(line => `
       <article class="order-line compact">
         <div class="order-line-main">
           <strong>${escapeHTML(line.shipping_name)}</strong>
@@ -494,10 +507,26 @@ async function loadTraderOrders() {
           ${line.escrow_status === "held" && !line.scanned ? `<button type="button" class="outline-button" data-delivery-qr="${line.item_id}">Delivery QR</button>` : ""}
           ${line.scanned && line.escrow_status === "held" ? '<span class="badge badge-paid">Package confirmed</span>' : ""}
         </div>
-      </article>`).join("");
+      </article>`);
+    const toFulfil = data.orders.filter(line => line.fulfilment_status !== "Delivered");
+    const fulfilled = data.orders.filter(line => line.fulfilment_status === "Delivered");
+    const cardMap = new Map(data.orders.map((line, index) => [line.item_id, orderCards[index]]));
+    target.innerHTML = summary + `
+      <div class="order-filter-tabs" role="tablist" aria-label="Delivery orders">
+        <button type="button" class="order-filter is-active" data-order-filter="fulfil">Orders to fulfil <span>${toFulfil.length}</span></button>
+        <button type="button" class="order-filter" data-order-filter="fulfilled">Fulfilled <span>${fulfilled.length}</span></button>
+      </div>
+      <div class="trader-order-list" data-order-list="fulfil">${toFulfil.length ? toFulfil.map(line => cardMap.get(line.item_id)).join("") : '<p class="muted">No orders are waiting for fulfilment.</p>'}</div>
+      <div class="trader-order-list" data-order-list="fulfilled" hidden>${fulfilled.length ? fulfilled.map(line => cardMap.get(line.item_id)).join("") : '<p class="muted">Delivered orders will appear here.</p>'}</div>`;
+    showTraderOrders("fulfil");
   } catch (error) {
     target.innerHTML = `<p class="muted">${escapeHTML(error.message)}</p>`;
   }
+}
+
+function showTraderOrders(tab) {
+  document.querySelectorAll("[data-order-list]").forEach(list => { list.hidden = list.dataset.orderList !== tab; });
+  document.querySelectorAll("[data-order-filter]").forEach(button => button.classList.toggle("is-active", button.dataset.orderFilter === tab));
 }
 
 /** One short line about this order's money (it is held in escrow until the buyer confirms delivery). */
@@ -519,6 +548,7 @@ async function updateOrderLine(id) {
   try {
     const result = await apiRequest(`/api/trader/order-items/${id}`, { method: "PATCH", body: JSON.stringify({ fulfilment_status: status }) });
     showToast(result.message);
+    await loadTraderOrders();
   } catch (error) {
     showToast(error.message);
   }

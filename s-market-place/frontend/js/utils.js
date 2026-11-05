@@ -6,6 +6,32 @@
    ============================================================================ */
 
 let toastTimeout;
+const THEME_PREFERENCE_KEY = "smpTheme";
+
+function getThemePreference() {
+  try {
+    return localStorage.getItem(THEME_PREFERENCE_KEY) === "light" ? "light" : "dark";
+  } catch (_) {
+    return "dark";
+  }
+}
+
+function applyThemePreference(theme = getThemePreference()) {
+  const selectedTheme = theme === "light" ? "light" : "dark";
+  document.documentElement.dataset.theme = selectedTheme;
+  document.documentElement.style.colorScheme = selectedTheme;
+  return selectedTheme;
+}
+
+function saveThemePreference(theme) {
+  const selectedTheme = theme === "light" ? "light" : "dark";
+  try {
+    localStorage.setItem(THEME_PREFERENCE_KEY, selectedTheme);
+  } catch (_) {
+    // Keep the current page theme if browser storage is unavailable.
+  }
+  applyThemePreference(selectedTheme);
+}
 
 /** Escape text before putting it into HTML, so user-written text can never inject code. */
 function escapeHTML(value) {
