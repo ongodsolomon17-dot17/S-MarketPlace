@@ -304,7 +304,7 @@ def create_due_subscription_in_app_notices(con):
 
 
 
-        def send_pending_subscription_notice_emails(logger):
+def send_pending_subscription_notice_emails(logger):
     """Send queued notice emails, marking each sent only after Resend accepts it."""
     if not config.RESEND_API_KEY or not config.RESEND_FROM_EMAIL:
         return 0
