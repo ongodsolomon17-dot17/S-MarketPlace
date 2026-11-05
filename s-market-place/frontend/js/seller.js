@@ -97,7 +97,8 @@ async function loadTraderSubscription() {
   const target = document.getElementById("trader-subscription-content");
 
   try {
-    const { subscription, plans } = await apiRequest("/api/trader/subscription");
+    const { subscription, plans, payments_enabled: paymentsEnabled } = await apiRequest("/api/trader/subscription");
+    const paymentAvailable = paymentsEnabled !== false;
     traderSubscription = subscription || null;
     traderSubscriptionLoaded = true;
     updateTraderProIndicators();
@@ -150,7 +151,9 @@ async function loadTraderSubscription() {
         <div class="earn-box"><span>Yearly</span><strong>${plans.yearly ? formatPrice(plans.yearly) : "Unavailable"}</strong></div>
       </div>
 
-      ${subscription.auto_renew && periodStillActive
+      ${!paymentAvailable
+        ? '<p class="subscription-setup-note" role="status">Online subscription payments are being set up. Your marketplace owner needs to connect Paystack before you can subscribe.</p>'
+        : subscription.auto_renew && periodStillActive
         ? `<p class="muted">Your subscription will renew automatically. You can turn this off and keep access until the paid period ends.</p>
            <button class="outline-button" type="button" data-subscription-renewal-off>Turn off auto-renew</button>`
         : canChoosePlan

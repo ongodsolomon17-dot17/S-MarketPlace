@@ -247,7 +247,11 @@ def trader_subscription():
     }
 
     if not row:
-        return jsonify(subscription=None, plans=plans)
+        return jsonify(
+            subscription=None,
+            plans=plans,
+            payments_enabled=bool(config.PAYSTACK_SECRET_KEY)
+        )
 
     subscription = dict(row)
 
@@ -262,11 +266,20 @@ def trader_subscription():
     ):
         subscription[field] = iso(subscription[field])
 
-    return jsonify(subscription=subscription, plans=plans)
+    return jsonify(
+        subscription=subscription,
+        plans=plans,
+        payments_enabled=bool(config.PAYSTACK_SECRET_KEY)
+    )
 
 @bp.post('/api/trader/subscription/checkout')
 @require_role('trader')
 def start_trader_subscription_checkout():
+    if not config.PAYSTACK_SECRET_KEY:
+        return jsonify(
+            error='Subscription payments are not configured yet. Please contact the marketplace owner.'
+        ), 503
+
     if too_many_requests(f'subscription-checkout:{g.user["id"]}', 5, 300):
         return _too_many()
 

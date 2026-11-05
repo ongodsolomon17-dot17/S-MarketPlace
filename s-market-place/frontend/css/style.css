@@ -535,6 +535,7 @@ body { color: var(--market-cream); }
 #trader-subscription-content .subscription-choice { border-color: var(--ui-border); }
 #trader-subscription-content .earn-box { background: rgba(255,255,255,.055); }
 #trader-subscription-content .outline-button { margin-top: 8px; }
+.subscription-setup-note { margin: 14px 0 0; padding: 13px 15px; border: 1px solid rgba(231,183,107,.45); border-radius: 14px; color: #ffe7bd; background: rgba(119,75,18,.24); line-height: 1.5; }
 
 /* About page */
 .about-page { padding-bottom: 56px; }
@@ -665,7 +666,7 @@ body { color: var(--market-cream); }
 .theme-options { display: flex; gap: 10px; margin: 0; padding: 0; border: 0; }
 .theme-options legend { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0); }
 .theme-option { display: inline-flex; align-items: center; gap: 8px; min-width: 100px; padding: 10px 13px; border: 1px solid var(--ui-border); border-radius: 12px; cursor: pointer; }
-.theme-option:has(input:checked) { border-color: var(--ui-blue); background: rgba(77,158,244,.12); }
+.theme-option input:checked + .theme-choice-swatch { border: 2px solid var(--ui-blue); box-shadow: 0 0 0 3px rgba(77,158,244,.16); }
 .theme-choice-swatch { width: 19px; height: 19px; border: 1px solid var(--ui-border); border-radius: 50%; }
 .theme-choice-dark { background: linear-gradient(135deg,#211b35 50%,#80d9d4 50%); }
 .theme-choice-light { background: linear-gradient(135deg,#fff 50%,#80a9e6 50%); }
@@ -685,7 +686,16 @@ html[data-theme="light"] {
   --ui-text-soft: #52617a;
 }
 html[data-theme="light"] body { color: #192238; }
+html[data-theme="light"] .background-img::after { content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none; background: rgba(245,248,252,.84); }
 html[data-theme="light"] .page-intro > p:not(.eyebrow), html[data-theme="light"] .hero > p:not(.eyebrow) { color: #52617a; }
+html[data-theme="light"] .search-panel, html[data-theme="light"] .panel-list, html[data-theme="light"] .panel-form,
+html[data-theme="light"] .account-card, html[data-theme="light"] .cart-row, html[data-theme="light"] .order-card,
+html[data-theme="light"] .product-detail, html[data-theme="light"] .trader-card, html[data-theme="light"] .product-card {
+  color: #192238; border-color: rgba(43,68,105,.18); background: rgba(255,255,255,.94); box-shadow: 0 16px 40px rgba(32,48,72,.11);
+}
+html[data-theme="light"] .panel-list .muted, html[data-theme="light"] .panel-form .muted,
+html[data-theme="light"] .product-details, html[data-theme="light"] .order-line, html[data-theme="light"] .notice { color: #34435b; }
+html[data-theme="light"] .product-card .product-image-wrap, html[data-theme="light"] .detail-media { background: linear-gradient(145deg,#eef4fb,#e6ebf5); }
 html[data-theme="light"] .trader-profile-card { background: linear-gradient(115deg,rgba(255,255,255,.97),rgba(237,243,251,.96)); }
 html[data-theme="light"] .trader-profile-name { color: #285ba4; }
 html[data-theme="light"] .trader-shortcut, html[data-theme="light"] .management-feature-button { color: #192238; }
@@ -700,6 +710,7 @@ html[data-theme="light"] .create-action-card small { color: #52617a; }
 html[data-theme="light"] .auth-card, html[data-theme="light"] #settings-content .panel-form { color: #192238; background: #fff; }
 html[data-theme="light"] .theme-preferences-copy p:last-child { color: #52617a; }
 html[data-theme="light"] .management-back-button { color: #fff; }
+html[data-theme="light"] .subscription-setup-note { color: #684717; background: #fff6e6; }
 html[data-theme="light"] .auth-card input, html[data-theme="light"] .auth-card select, html[data-theme="light"] .auth-card textarea,
 html[data-theme="light"] .panel-form input, html[data-theme="light"] .panel-form select, html[data-theme="light"] .panel-form textarea { color: #192238; background: #f7f9fc; }
 

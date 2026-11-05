@@ -96,7 +96,7 @@ document.addEventListener("click", async event => {
   if (updateLine) { await updateOrderLine(updateLine.dataset.updateItem); return; }
 
   /* ---- Fast Finger ---- */
-  if (closest("[data-open-deal-editor]")) { openDealEditor(); return; }
+  if (closest("[data-open-deal-editor]")) { await openDealEditor(); return; }
   if (closest("[data-close-deal-editor]")) { closeDealEditor(); return; }
   const soldButton = closest("[data-deal-sold]");
   if (soldButton) { await markDealSold(soldButton.dataset.dealSold); return; }

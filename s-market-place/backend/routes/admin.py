@@ -6,6 +6,7 @@ Only accounts listed in the ADMIN_USER_IDS environment variable can use these ro
 import hashlib
 import secrets
 from flask import Blueprint, current_app, g, jsonify, request
+import config
 import payment_service
 import escrow_service
 from auth import require_admin
@@ -204,6 +205,11 @@ def subscription_plans():
 @bp.patch('/api/admin/subscription-plans')
 @require_admin
 def update_subscription_plan():
+    if not config.PAYSTACK_SECRET_KEY:
+        return jsonify(
+            error='Paystack is not configured yet, so the subscription price was not changed.'
+        ), 503
+
     data = request.get_json(silent=True) or {}
     plan = str(data.get('plan', '')).strip()
 

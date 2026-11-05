@@ -124,9 +124,10 @@ function markDealEnded(timerElement) {
 /* ----------------------------------------------------------------------------
    Posting, selling and deleting (traders only)
    ---------------------------------------------------------------------------- */
-function openDealEditor() {
+async function openDealEditor() {
   if (!currentUser || currentUser.role !== "trader") { showToast("Only traders can post deals."); return; }
   closeTraderCreatePanel();
+  if (!traderSubscriptionLoaded) await loadTraderSubscription();
   if (!traderHasProAccess()) { showSubscriptionUpgrade("post Fast Finger deals"); return; }
   document.getElementById("deal-form").reset();
   document.getElementById("deal-feedback").textContent = "";
