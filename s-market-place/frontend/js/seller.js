@@ -16,6 +16,9 @@ let editingProductId = null;            // the product being edited, or null whi
 let ownedProducts = {};
 let traderSubscription = null;
 let traderSubscriptionLoaded = false;
+let traderHasEverSubscribed = false;
+let subscriptionReminderShownForUser = null;
+let traderSubscriptionUserId = null;
 
 /* ----------------------------------------------------------------------------
    Category picker: choose from the list, or type a new category
@@ -63,7 +66,9 @@ async function loadTraderDashboard() {
     : "";
   document.getElementById("trader-profile-avatar").innerHTML = avatarHTML(currentUser);
 
-  const subscriptionTask = loadTraderSubscription();
+  const subscriptionTask = traderSubscriptionUserId === currentUser.id && traderSubscriptionLoaded
+    ? Promise.resolve()
+    : loadTraderSubscription();
   await Promise.all([subscriptionTask, loadOwnedProducts()]);
 }
 
@@ -75,6 +80,49 @@ function openTraderCreatePanel() {
 function closeTraderCreatePanel() {
   const panel = document.getElementById("trader-create-overlay");
   if (panel) panel.hidden = true;
+}
+
+function closeTraderSubscriptionModal() {
+  const overlay = document.getElementById("trader-subscription-overlay");
+  if (overlay) overlay.hidden = true;
+}
+
+async function openTraderSubscriptionModal() {
+  if (!currentUser || currentUser.role !== "trader") return;
+  if (traderSubscriptionUserId !== currentUser.id || !traderSubscriptionLoaded) await loadTraderSubscription();
+  const overlay = document.getElementById("trader-subscription-overlay");
+  if (overlay) overlay.hidden = false;
+}
+
+function syncSubscriptionCrown() {
+  const button = document.getElementById("header-subscription-button");
+  if (!button) return;
+  const trader = Boolean(currentUser && currentUser.role === "trader");
+  const status = traderSubscription?.status;
+  const expiry = status === "trial"
+    ? traderSubscription?.trial_ends_at
+    : traderSubscription?.current_period_ends_at;
+  const daysLeft = expiry ? Math.ceil((Date.parse(expiry) - Date.now()) / 86400000) : null;
+  const withinReminderWindow = daysLeft !== null && daysLeft <= 5;
+  const expired = status === "expired" || status === "cancelled";
+  button.hidden = !trader || !(withinReminderWindow || expired);
+  if (button.hidden) closeTraderSubscriptionModal();
+}
+
+function maybeShowDailySubscriptionReminder() {
+  if (!currentUser || currentUser.role !== "trader" || traderHasEverSubscribed) return;
+  if (subscriptionReminderShownForUser === currentUser.id) return;
+  subscriptionReminderShownForUser = currentUser.id;
+
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const key = `smpSubscriptionReminder:${currentUser.id}`;
+  let lastShown = "";
+  try { lastShown = localStorage.getItem(key) || ""; } catch (_) { /* show reminder if storage is unavailable */ }
+  if (lastShown === today) return;
+  try { localStorage.setItem(key, today); } catch (_) { /* session guard above still prevents repeat popups */ }
+  const overlay = document.getElementById("trader-subscription-overlay");
+  if (overlay) overlay.hidden = false;
 }
 
 async function loadTraderFinance() {
@@ -95,19 +143,34 @@ async function loadTraderManagement() {
 
 async function loadTraderSubscription() {
   const target = document.getElementById("trader-subscription-content");
+  if (!currentUser || currentUser.role !== "trader") return;
+  if (traderSubscriptionUserId !== currentUser.id) {
+    traderSubscriptionUserId = currentUser.id;
+    traderSubscription = null;
+    traderSubscriptionLoaded = false;
+    traderHasEverSubscribed = false;
+  }
 
   try {
-    const { subscription, plans, payments_enabled: paymentsEnabled } = await apiRequest("/api/trader/subscription");
+    const {
+      subscription,
+      plans,
+      payments_enabled: paymentsEnabled,
+      has_ever_subscribed: hasEverSubscribed
+    } = await apiRequest("/api/trader/subscription");
     const paymentAvailable = paymentsEnabled !== false;
     traderSubscription = subscription || null;
+    traderHasEverSubscribed = Boolean(hasEverSubscribed);
     traderSubscriptionLoaded = true;
     updateTraderProIndicators();
+    syncSubscriptionCrown();
 
     if (!subscription) {
       const statusPill = document.getElementById("trader-subscription-status");
       statusPill.textContent = "Plan unavailable";
       statusPill.classList.add("is-expired");
       target.innerHTML = '<p class="muted">No subscription record was found for this trader account.</p>';
+      maybeShowDailySubscriptionReminder();
       return;
     }
 
@@ -171,11 +234,13 @@ async function loadTraderSubscription() {
              </label>
              <button class="primary-button" type="button" data-subscription-checkout>Continue to payment</button>`
           : '<p class="muted">Your paid period is still active. You can renew after it ends.</p>'}`;
+    maybeShowDailySubscriptionReminder();
   } catch (error) {
     traderSubscriptionLoaded = false;
     updateTraderProIndicators();
     const statusPill = document.getElementById("trader-subscription-status");
     if (statusPill) { statusPill.textContent = "Unavailable"; statusPill.classList.add("is-expired"); }
+    syncSubscriptionCrown();
     target.textContent = error.message;
   }
 }
@@ -192,9 +257,8 @@ function updateTraderProIndicators() {
 }
 
 function showSubscriptionUpgrade(feature) {
-  showToast("An active trial or subscription is required to " + feature + ". Choose a plan in your trader account centre.");
-  showPage("trader-dashboard");
-  window.setTimeout(() => document.getElementById("trader-subscription-panel")?.scrollIntoView({ behavior: "smooth", block: "center" }), 80);
+  showToast("An active trial or subscription is required to " + feature + ". Choose a plan from the crown icon.");
+  openTraderSubscriptionModal();
 }
 
 async function startTraderSubscriptionCheckout() {
@@ -347,7 +411,7 @@ function togglePriceSlash() {
 /** Open the pop-up. Pass a product to EDIT it, or nothing to ADD a new one. */
 async function openProductEditor(product = null) {
   closeTraderCreatePanel();
-  if (!product && !traderSubscriptionLoaded) await loadTraderSubscription();
+  if (!product && (traderSubscriptionUserId !== currentUser.id || !traderSubscriptionLoaded)) await loadTraderSubscription();
   if (!product && !traderHasProAccess()) {
     showSubscriptionUpgrade("add products");
     return;

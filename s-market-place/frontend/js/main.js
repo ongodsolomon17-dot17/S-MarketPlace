@@ -15,6 +15,8 @@ document.addEventListener("click", async event => {
   /* ---- page navigation ---- */
   const navLink = closest("[data-page-link]");
   if (navLink) { event.preventDefault(); showPage(navLink.dataset.pageLink); return; }
+  if (closest("[data-open-subscription]")) { await openTraderSubscriptionModal(); return; }
+  if (closest("[data-close-subscription-modal]")) { closeTraderSubscriptionModal(); return; }
   if (closest("[data-back]")) { closeProduct(); return; }
   if (target.id === "header-account-button" || closest("#header-account-button")) { openAccountArea(); return; }
 
@@ -232,5 +234,7 @@ window.addEventListener("pageshow", event => { if (event.persisted) window.locat
   }
 
   // 3. Fill the home screen (the feed, category chips, trader shops) and the cart badge.
-  await Promise.all([refreshCartCount(), loadCategoryChips(), loadTraders(), loadHome()]);
+  const startupTasks = [refreshCartCount(), loadCategoryChips(), loadTraders(), loadHome()];
+  if (currentUser && currentUser.role === "trader") startupTasks.push(loadTraderSubscription());
+  await Promise.all(startupTasks);
 })();

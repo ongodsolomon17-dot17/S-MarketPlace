@@ -41,6 +41,9 @@
         <img src="/icons/cart-added-amount-icon.png" alt="🛒" height="40" width="40">
         <span class="cart-count" id="cart-count">0</span>
       </button>
+      <button class="subscription-crown-button" id="header-subscription-button" type="button" data-open-subscription aria-label="Subscription" title="Subscription" hidden>
+        <img src="/icons/subscription-crown.png" alt="">
+      </button>
       <!-- Sign in for guests; add-item screen for traders; account screen for buyers (see auth.js) -->
       <button class="account-header-button" id="header-account-button" type="button" aria-label="Account">
         <img src="/icons/user.png" alt="👤" height="40" width="40">
@@ -173,10 +176,6 @@
         <div id="trader-own-products"><p class="muted">Loading your products…</p></div>
       </section>
 
-      <section class="panel-list subscription-panel" id="trader-subscription-panel" aria-labelledby="trader-subscription-title">
-        <div class="panel-title-row"><div><p class="eyebrow">PRO ACCESS</p><h2 id="trader-subscription-title">Your subscription</h2></div><span class="subscription-status-pill" id="trader-subscription-status">Checking…</span></div>
-        <div id="trader-subscription-content"><p class="muted">Loading your subscription…</p></div>
-      </section>
     </section>
 
     <section class="page-panel trader-finance-page" id="page-trader-finance" data-page="trader-finance" hidden>
@@ -409,6 +408,19 @@
           <strong>Add Fast Finger</strong><small>Post a timed price deal</small>
         </button>
       </div>
+    </section>
+  </div>
+  <div class="auth-overlay subscription-overlay" id="trader-subscription-overlay" hidden>
+    <div class="auth-backdrop" data-close-subscription-modal></div>
+    <section class="auth-card subscription-modal" role="dialog" aria-modal="true" aria-labelledby="trader-subscription-title">
+      <button class="auth-close" type="button" data-close-subscription-modal aria-label="Close subscription reminder">×</button>
+      <div class="subscription-modal-heading">
+        <span class="subscription-modal-crown" aria-hidden="true"><img src="/icons/subscription-crown.png" alt=""></span>
+        <div><p class="eyebrow">TRADER PRO</p><h2 id="trader-subscription-title">Your subscription</h2></div>
+        <span class="subscription-status-pill" id="trader-subscription-status">Checking…</span>
+      </div>
+      <div id="trader-subscription-content"><p class="muted">Loading your subscription…</p></div>
+      <div class="subscription-modal-footer"><p class="muted">You can review this again from the crown icon.</p><button class="outline-button" type="button" data-close-subscription-modal>Cancel</button></div>
     </section>
   </div>
   <div class="auth-overlay" id="product-overlay" hidden>

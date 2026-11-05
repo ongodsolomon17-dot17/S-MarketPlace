@@ -136,10 +136,11 @@ async function confirmTraderSubscriptionPayment(reference) {
 
     if (result.paid) {
       try { sessionStorage.removeItem("smpPendingSubscriptionReference"); } catch (_) { /* ignore */ }
+      closeTraderSubscriptionModal();
     }
 
     showToast(result.message);
-    loadTraderSubscription();
+    await loadTraderSubscription();
     loadOwnedProducts();
   } catch (error) {
     showToast(error.message);

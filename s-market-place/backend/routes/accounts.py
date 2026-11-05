@@ -232,6 +232,14 @@ def trader_subscription():
         plan_rows = con.execute(
             'SELECT plan, price_ngn FROM trader_subscription_plans ORDER BY plan'
         ).fetchall()
+        payment_history = con.execute(
+            """SELECT EXISTS(
+                   SELECT 1 FROM trader_subscription_payments
+                   WHERE trader_id=%s AND status='paid'
+               ) AS has_ever_subscribed""",
+            (g.user['id'],)
+        ).fetchone()
+        has_ever_subscribed = bool(payment_history['has_ever_subscribed'])
 
         if row and row['status'] in ('trial', 'active') and not row['can_add_products']:
             con.execute(
@@ -250,7 +258,8 @@ def trader_subscription():
         return jsonify(
             subscription=None,
             plans=plans,
-            payments_enabled=bool(config.PAYSTACK_SECRET_KEY)
+            payments_enabled=bool(config.PAYSTACK_SECRET_KEY),
+            has_ever_subscribed=has_ever_subscribed
         )
 
     subscription = dict(row)
@@ -269,7 +278,8 @@ def trader_subscription():
     return jsonify(
         subscription=subscription,
         plans=plans,
-        payments_enabled=bool(config.PAYSTACK_SECRET_KEY)
+        payments_enabled=bool(config.PAYSTACK_SECRET_KEY),
+        has_ever_subscribed=has_ever_subscribed
     )
 
 @bp.post('/api/trader/subscription/checkout')

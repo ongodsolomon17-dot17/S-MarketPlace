@@ -169,6 +169,12 @@ async function submitAuth(event) {
 function updateHeaderAccount() {
   const button = document.getElementById("header-account-button");
   button.title = currentUser ? `${currentUser.first_name} · ${currentUser.role}` : "Sign in / Join";
+  if (typeof syncSubscriptionCrown === "function") syncSubscriptionCrown();
+  else {
+    const subscriptionButton = document.getElementById("header-subscription-button");
+    if (subscriptionButton) subscriptionButton.hidden = !currentUser || currentUser.role !== "trader";
+  }
+  if ((!currentUser || currentUser.role !== "trader") && typeof closeTraderSubscriptionModal === "function") closeTraderSubscriptionModal();
   const label = document.getElementById("nav-account-label");
   if (label) label.textContent = currentUser && currentUser.role === "trader" ? "My shop" : "Account";
 }
