@@ -4,8 +4,8 @@ import math
 
 import escrow_service
 import config
-import email_service
 from database import db
+from routes import email_service
 
 def subscription_allows_pro_features(con, trader_id):
     """Check the trader's Pro entitlement using the database clock."""
