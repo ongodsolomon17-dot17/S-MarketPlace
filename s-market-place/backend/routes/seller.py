@@ -10,6 +10,7 @@ from categories import resolve_category
 from database import db
 from helpers import iso, product_dict
 from product_service import RECOVERY_DAYS
+import subscription_service
 
 bp = Blueprint('seller', __name__)
 
@@ -93,23 +94,47 @@ def my_products():
 @require_role('trader')
 def create_product():
     """Add a product. The category is picked from the list or typed in (new ones are created automatically)."""
+
     data = request.get_json(silent=True) or {}
     fields, error = clean_product_fields(data, partial=False)
     if not error:
-        error = slash_error(fields['price'], fields['original_price'])    # the "was" price must be higher
+        error = slash_error(fields['price'], fields['original_price'])
     if error:
         return jsonify(error=error), 400
+
     with db() as con:
+        if not subscription_service.subscription_allows_pro_features(con, g.user['id']):
+            return jsonify(
+                error='Your trial or subscription has ended. Renew to add new products.',
+                subscription_required=True,
+                feature='products'
+            ), 403
+
         category, error = resolve_category(con, data.get('category'), g.user['id'])
         if error:
             return jsonify(error=error), 400
+
         row = con.execute(
             'INSERT INTO products(trader_id,name,price,original_price,category,description,image,stock,show_quantity) '
             'VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING *',
-            (g.user['id'], fields['name'], fields['price'], fields['original_price'], category, fields['description'],
-             fields['image'], fields['stock'], fields['show_quantity'])).fetchone()
+            (
+                g.user['id'],
+                fields['name'],
+                fields['price'],
+                fields['original_price'],
+                category,
+                fields['description'],
+                fields['image'],
+                fields['stock'],
+                fields['show_quantity']
+            )
+        ).fetchone()
+
     row['store_name'], row['trader_username'] = g.user['store_name'], g.user['username']
-    return jsonify(message=f"Product added to {category} with {fields['stock']} item(s) in stock.", product=product_dict(row))
+    return jsonify(
+        message=f"Product added to {category} with {fields['stock']} item(s) in stock.",
+        product=product_dict(row)
+    )
 
 
 @bp.patch('/api/trader/products/<int:product_id>')

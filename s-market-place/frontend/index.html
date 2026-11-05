@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Discover products from independent traders and shop securely at S-Market Place.">
   <title>S-Market Place | Multi Trader Marketplace</title>
-  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="css/style.css">
 
   <!-- config.js says where the backend lives. The other files are loaded in this order on purpose:
        each one only uses things defined in the files above it. -->
@@ -130,48 +130,75 @@
       <div id="cart-content" class="cart-content"><p class="muted">Loading your cart…</p></div>
     </section>
 
-    <!-- ============================== TRADER SCREEN ==============================
-         Short and tidy: an "Add product" button (the form opens in a pop-up), a slim product list
-         (name, price, quantity, Edit) and the orders to fulfil. -->
-    <section class="page-panel" id="page-trader-dashboard" data-page="trader-dashboard" hidden>
-      <section class="page-intro">
-        <p class="eyebrow">TRADER CENTRE</p>
-        <h1 id="dashboard-store-name">Your shop</h1>
-        <p>Add products, keep your stock up to date and follow your orders.</p>
-        <div class="hero-actions">
-          <button class="primary-button" type="button" data-open-product-editor> <img src="icons/add.png" alt="➕" height="30" width="30"> Add product</button>
-          <button class="outline-button" type="button" data-page-link="deals"> <img src="icons/fast-finger-icon.png" alt="⚡" height="25" width="25"> Fast Finger</button>
-          <button class="outline-button" type="button" data-page-link="settings"> <img src="icons/settings.png" alt="⚙" height="25" width="25"> Settings</button>
+    <section class="page-panel trader-center" id="page-trader-dashboard" data-page="trader-dashboard" hidden>
+      <section class="page-intro trader-center-intro">
+        <p class="eyebrow">TRADER ACCOUNT CENTRE</p>
+        <div class="trader-profile-card">
+          <div class="trader-profile-avatar" id="trader-profile-avatar" aria-hidden="true"></div>
+          <div class="trader-profile-copy">
+            <p class="trader-profile-name" id="trader-profile-name">Your account</p>
+            <h1 id="dashboard-store-name">Your shop</h1>
+            <p class="trader-profile-handle" id="trader-profile-handle"></p>
+          </div>
+          <button class="outline-button trader-settings-button" type="button" data-page-link="settings">
+            <img src="icons/settings.png" alt="" width="20" height="20"> Settings
+          </button>
         </div>
+        <p class="trader-intro-copy">Manage your shop, track earnings, respond to orders, and keep your products up to date.</p>
       </section>
 
-      <div class="dashboard-layout stacked">
-        <!-- Money: held in escrow until the buyer confirms delivery, then available to withdraw -->
-        <div class="panel-list" id="earnings-panel">
-          <h2>Earnings</h2>
+      <nav class="trader-shortcuts" aria-label="Trader account shortcuts">
+        <button class="trader-shortcut trader-shortcut-primary" type="button" data-open-product-editor>
+          <span class="shortcut-icon" aria-hidden="true">＋</span>
+          <span class="shortcut-copy"><strong>Add a product</strong><small>List an item in your shop</small></span>
+          <span class="pro-badge" data-pro-badge="products" hidden>✦ PRO</span>
+        </button>
+        <button class="trader-shortcut" type="button" data-scroll-to="earnings-panel">
+          <span class="shortcut-icon" aria-hidden="true">₦</span>
+          <span class="shortcut-copy"><strong>Finance</strong><small>Balances and payout requests</small></span>
+        </button>
+        <button class="trader-shortcut" type="button" data-page-link="deals">
+          <span class="shortcut-icon" aria-hidden="true">⚡</span>
+          <span class="shortcut-copy"><strong>Fast Finger</strong><small>Limited-time trader deals</small></span>
+          <span class="pro-badge" data-pro-badge="deals" hidden>✦ PRO</span>
+        </button>
+      </nav>
+
+      <section class="panel-list subscription-panel" id="trader-subscription-panel" aria-labelledby="trader-subscription-title">
+        <div class="panel-title-row">
+          <div><p class="eyebrow">PRO ACCESS</p><h2 id="trader-subscription-title">Your subscription</h2></div>
+          <span class="subscription-status-pill" id="trader-subscription-status">Checking…</span>
+        </div>
+        <div id="trader-subscription-content"><p class="muted">Loading your subscription…</p></div>
+      </section>
+
+      <div class="dashboard-layout trader-workspace">
+        <section class="panel-list" id="earnings-panel" aria-labelledby="earnings-title">
+          <div class="panel-title-row"><div><p class="eyebrow">SHOP FINANCE</p><h2 id="earnings-title">Earnings &amp; payouts</h2></div><span class="panel-icon" aria-hidden="true">₦</span></div>
           <div class="earn-grid" id="earnings-grid"><p class="muted">Loading…</p></div>
           <p class="muted earn-note" id="earnings-note"></p>
           <div class="modal-actions" id="earnings-actions"></div>
           <div id="payout-history"></div>
-        </div>
-        <div class="panel-list" id="notifications-panel" hidden>
-          <h2>Notifications <span class="notif-badge" id="notif-badge" hidden></span></h2>
+        </section>
+        <section class="panel-list" id="notifications-panel" hidden aria-labelledby="notifications-title">
+          <div class="panel-title-row"><div><p class="eyebrow">SHOP UPDATES</p><h2 id="notifications-title">Notifications <span class="notif-badge" id="notif-badge" hidden></span></h2></div><span class="panel-icon" aria-hidden="true">♢</span></div>
           <div id="trader-notifications" data-notification-list></div>
-        </div>
-        <div class="panel-list">
-          <h2>Your listed products</h2>
+        </section>
+        <section class="panel-list dashboard-wide" id="trader-products-panel" aria-labelledby="trader-products-title">
+          <div class="panel-title-row"><div><p class="eyebrow">INVENTORY</p><h2 id="trader-products-title">Your listed products</h2></div><span class="panel-icon" aria-hidden="true">▦</span></div>
+          <p class="panel-supporting-copy">Your existing listings stay available to view and edit if your subscription expires.</p>
           <div id="trader-own-products"><p class="muted">Loading your products…</p></div>
-        </div>
-        <!-- Deleted products wait here for 30 days, then the system erases them (and their pictures) for good -->
-        <div class="panel-list" id="deleted-panel" hidden>
-          <h2>Recently deleted</h2>
-          <p class="muted">Deleted products are erased for good, with their pictures, after 30 days. Restore one before then to bring it back.</p>
+        </section>
+        <section class="panel-list dashboard-wide" id="deleted-panel" hidden aria-labelledby="deleted-title">
+          <div class="panel-title-row"><div><p class="eyebrow">INVENTORY HISTORY</p><h2 id="deleted-title">Recently deleted</h2></div></div>
+          <p class="panel-supporting-copy">Deleted products and their pictures are permanently removed after 30 days. Restore a product before then to bring it back.</p>
           <div id="trader-deleted-products"></div>
-        </div>
-        <div class="panel-list">
-          <h2>Orders to fulfil</h2>
+        </section>
+        <section class="panel-list dashboard-wide" id="trader-orders-panel" aria-labelledby="trader-orders-title">
+          <div class="panel-title-row"><div><p class="eyebrow">ORDER MANAGEMENT</p><h2 id="trader-orders-title">Orders to fulfil</h2></div><span class="panel-icon" aria-hidden="true">⌑</span></div>
+          <p class="panel-supporting-copy">Keep buyers informed as you prepare and deliver their orders.</p>
           <div id="trader-orders"><p class="muted">Loading orders…</p></div>
-        </div>
+        </section>
       </div>
     </section>
 
@@ -204,23 +231,46 @@
       <div id="admin-content" class="orders-content"></div>
     </section>
 
-    <!-- ============================== ABOUT ============================== -->
-    <section class="page-panel" id="page-about" data-page="about" hidden>
-      <section class="page-intro">
-        <p class="eyebrow">ABOUT THE MARKETPLACE</p>
-        <h1>Many traders. One marketplace.</h1>
-        <p>Discover products from different traders in one place. Visitors can explore freely, buyers create accounts to check out, and traders register to run their own shops.</p>
-      </section>
-      <div class="account-card">
-        <h2>Ready to join?</h2>
-        <p>Shop as a buyer or create a trader shop of your own.</p>
-        <div class="hero-actions">
-          <button class="primary-button" type="button" data-open-auth="buyer">Create buyer account</button>
-          <button class="outline-button" type="button" data-open-auth="trader">Create trader account</button>
+    <section class="page-panel about-page" id="page-about" data-page="about" hidden>
+      <section class="page-intro about-hero">
+        <p class="eyebrow">ABOUT S-MARKET PLACE</p>
+        <h1>A marketplace built around independent traders.</h1>
+        <p>S-Market Place brings products from independent shops into one place. Buyers can discover items across shops, while traders manage their own listings, orders, and earnings through one account.</p>
+        <div class="about-hero-actions">
+          <button class="primary-button" type="button" data-open-auth="buyer">Start shopping</button>
+          <button class="outline-button" type="button" data-open-auth="trader">Open a trader shop</button>
         </div>
-      </div>
-    </section>
+      </section>
 
+      <section class="about-section" aria-labelledby="about-how-title">
+        <div class="about-section-heading"><p class="eyebrow">HOW IT WORKS</p><h2 id="about-how-title">One marketplace, two ways to take part.</h2></div>
+        <div class="about-feature-grid">
+          <article class="about-feature-card"><span class="about-feature-icon" aria-hidden="true">⌕</span><p class="eyebrow">FOR BUYERS</p><h3>Find products across shops</h3><p>Browse without an account, search by product or category, compare trader listings, and keep items in your cart. A buyer account is needed to place and manage an order.</p></article>
+          <article class="about-feature-card"><span class="about-feature-icon" aria-hidden="true">▣</span><p class="eyebrow">FOR TRADERS</p><h3>Run your shop in one place</h3><p>Create a storefront, list and update products, manage stock, post time-limited Fast Finger deals, and follow paid orders through fulfilment.</p></article>
+          <article class="about-feature-card"><span class="about-feature-icon" aria-hidden="true">↗</span><p class="eyebrow">FOR EVERY ORDER</p><h3>Clear payment and delivery steps</h3><p>Paystack processes checkout. Order records show payment and delivery progress, and buyers can confirm receipt or report a problem through the order flow.</p></article>
+        </div>
+      </section>
+
+      <section class="about-process-grid" aria-label="Marketplace process">
+        <article class="about-process-card"><span>01</span><div><h3>Discover</h3><p>Search the marketplace, explore categories, or open a trader’s shop to see its products.</p></div></article>
+        <article class="about-process-card"><span>02</span><div><h3>Place an order</h3><p>Review your cart and complete checkout through Paystack. Your order is then available in your account.</p></div></article>
+        <article class="about-process-card"><span>03</span><div><h3>Confirm delivery</h3><p>Follow delivery updates. Confirm receipt when your order arrives, or report a problem through the order dispute flow.</p></div></article>
+      </section>
+
+      <section class="about-trust-section" aria-labelledby="about-trust-title">
+        <div><p class="eyebrow">PAYMENTS &amp; ACCOUNT SAFETY</p><h2 id="about-trust-title">Know what happens after checkout.</h2></div>
+        <div class="about-trust-copy">
+          <p>Checkout payments are handled by Paystack. For eligible orders, seller proceeds are held until delivery is confirmed or a reported issue is reviewed. Traders can see their balance breakdown and request an available payout to their saved bank account.</p>
+          <p>Accounts use sign-in credentials and role-based access for buyer, trader, and admin actions. Admins can enable authenticator-code sign-in checks. Keep your password and verification codes private, and complete purchases through the marketplace checkout.</p>
+          <p>Traders can view and edit existing products after their trial or paid access ends. Adding products and marked Pro tools require an active trial or subscription. Current plan choices and prices appear in the trader account centre.</p>
+        </div>
+      </section>
+
+      <section class="about-final-card">
+        <div><p class="eyebrow">YOUR NEXT STEP</p><h2>Explore the marketplace or build your shop.</h2><p>Browse products first, then choose the account that fits how you want to use S-Market Place.</p></div>
+        <div class="hero-actions"><button class="primary-button" type="button" data-page-link="home">Browse products</button><button class="outline-button" type="button" data-open-auth="trader">Create trader account</button></div>
+      </section>
+    </section>
     <!-- ============================== ACCOUNT (buyers) ============================== -->
     <section class="page-panel" id="page-account" data-page="account" hidden>
       <section class="page-intro"><p class="eyebrow">YOUR ACCOUNT</p><h1>Account centre</h1></section>
@@ -282,6 +332,14 @@
             <label for="login-identity">Username or email</label><input id="login-identity" name="identity" autocomplete="username">
             <label for="login-password">Password</label><input id="login-password" name="password" type="password" autocomplete="current-password">
           </div>
+
+          <div id="admin-mfa-login-fields" hidden>
+            <label for="admin-mfa-login-code">Authenticator code or recovery code</label>
+            <input id="admin-mfa-login-code" inputmode="text"
+            autocomplete="one-time-code" maxlength="16">
+            <p class="muted">Use a current six-digit authenticator code, or one unused recovery code.</p>
+          </div>
+
           <label for="auth-password" id="auth-password-label">Create password (minimum 8 characters)</label>
           <input id="auth-password" name="password_signup" type="password" minlength="8" autocomplete="new-password" required>
           <button type="submit" class="primary-button auth-submit" id="auth-submit">Create account</button>

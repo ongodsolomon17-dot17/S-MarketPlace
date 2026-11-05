@@ -2,16 +2,173 @@
 
 Only accounts listed in the ADMIN_USER_IDS environment variable can use these routes.
 """
-from flask import Blueprint, g, jsonify, request
 
+import hashlib
+import secrets
+from flask import Blueprint, current_app, g, jsonify, request
+import payment_service
 import escrow_service
 from auth import require_admin
 from database import db
-from helpers import iso
+from helpers import TOO_MANY_MESSAGE, iso, too_many_requests
 from routes.delivery import DISPUTE_REASONS
+from werkzeug.security import check_password_hash
+import mfa_service
 
 bp = Blueprint('admin', __name__)
 
+
+@bp.post('/api/admin/mfa/setup')
+@require_admin
+def setup_admin_mfa():
+
+    data = request.get_json(silent=True) or {}
+    password = str(data.get('password', ''))
+
+    with db() as con:
+        user = con.execute(
+            'SELECT email, password_hash FROM users WHERE id=%s',
+            (g.user['id'],)
+        ).fetchone()
+
+    if not user or not check_password_hash(user['password_hash'], password):
+        return jsonify(error='Your password is incorrect.'), 401
+
+    secret = mfa_service.new_totp_secret()
+    encrypted_secret = mfa_service.encrypt_secret(secret)
+
+    with db() as con:
+        row = con.execute(
+            """INSERT INTO admin_mfa
+                   (admin_user_id, pending_secret_encrypted,
+                    pending_secret_expires_at, updated_at)
+               VALUES (%s, %s, NOW() + INTERVAL '10 minutes', NOW())
+               ON CONFLICT (admin_user_id) DO UPDATE
+                   SET pending_secret_encrypted = EXCLUDED.pending_secret_encrypted,
+                       pending_secret_expires_at = EXCLUDED.pending_secret_expires_at,
+                       updated_at = NOW()
+                   WHERE admin_mfa.enabled_at IS NULL
+               RETURNING admin_user_id""",
+            (g.user['id'], encrypted_secret)
+        ).fetchone()
+
+    if not row:
+        return jsonify(error='Authenticator MFA is already enabled for this admin.'), 409
+
+    return jsonify(
+        message='Scan this setup link in your authenticator app, then verify a code to finish setup.',
+        provisioning_uri=mfa_service.provisioning_uri(secret, user['email'])
+    )
+
+@bp.post('/api/admin/mfa/verify-setup')
+@require_admin
+def verify_admin_mfa_setup():
+    if too_many_requests(f'admin-mfa-setup:{g.user["id"]}', 10, 600):
+        return jsonify(error=TOO_MANY_MESSAGE), 429
+
+    data = request.get_json(silent=True) or {}
+    code = str(data.get('code', '')).strip()
+
+    with db() as con:
+        pending = con.execute(
+            """SELECT pending_secret_encrypted
+               FROM admin_mfa
+               WHERE admin_user_id=%s
+                 AND enabled_at IS NULL
+                 AND pending_secret_expires_at > NOW()""",
+            (g.user['id'],)
+        ).fetchone()
+
+    if not pending or not pending['pending_secret_encrypted']:
+        return jsonify(error='Your setup link expired. Start MFA setup again.'), 400
+
+    secret = mfa_service.decrypt_secret(pending['pending_secret_encrypted'])
+    matched_step = mfa_service.matching_totp_step(secret, code)
+
+    if matched_step is None:
+        return jsonify(error='That code is invalid or expired. Try the current code in your authenticator app.'), 400
+
+    with db() as con:
+        enabled = con.execute(
+            """UPDATE admin_mfa
+               SET secret_encrypted = pending_secret_encrypted,
+                   pending_secret_encrypted = NULL,
+                   pending_secret_expires_at = NULL,
+                   enabled_at = NOW(),
+                   last_used_step = %s,
+                   updated_at = NOW()
+               WHERE admin_user_id = %s
+                 AND enabled_at IS NULL
+                 AND pending_secret_expires_at > NOW()
+               RETURNING admin_user_id""",
+            (matched_step, g.user['id'])
+        ).fetchone()
+
+    if not enabled:
+        return jsonify(error='Setup expired or already completed. Start again if MFA is not enabled.'), 409
+
+    return jsonify(message='Authenticator MFA is now enabled for this admin account.')
+
+@bp.post('/api/admin/mfa/recovery-codes')
+@require_admin
+def create_admin_mfa_recovery_codes():
+    if too_many_requests(f'admin-mfa-recovery:{g.user["id"]}', 5, 600):
+        return jsonify(error=TOO_MANY_MESSAGE), 429
+
+    data = request.get_json(silent=True) or {}
+    password = str(data.get('password', ''))
+    code = str(data.get('code', '')).strip()
+
+    with db() as con:
+        row = con.execute(
+            """SELECT u.password_hash, m.secret_encrypted, m.last_used_step
+               FROM users u
+               JOIN admin_mfa m ON m.admin_user_id = u.id
+               WHERE u.id=%s AND m.enabled_at IS NOT NULL""",
+            (g.user['id'],)
+        ).fetchone()
+
+    if not row or not check_password_hash(row['password_hash'], password):
+        return jsonify(error='Your password is incorrect or authenticator MFA is not enabled.'), 401
+
+    secret = mfa_service.decrypt_secret(row['secret_encrypted'])
+    matched_step = mfa_service.matching_totp_step(secret, code)
+
+    if matched_step is None or matched_step <= row['last_used_step']:
+        return jsonify(error='Enter a fresh code from your authenticator app.'), 401
+
+    with db() as con:
+        accepted = con.execute(
+            """UPDATE admin_mfa
+               SET last_used_step=%s, updated_at=NOW()
+               WHERE admin_user_id=%s
+                 AND enabled_at IS NOT NULL
+                 AND last_used_step < %s
+               RETURNING admin_user_id""",
+            (matched_step, g.user['id'], matched_step)
+        ).fetchone()
+
+        if not accepted:
+            return jsonify(error='That authenticator code was already used. Enter the current code.'), 401
+
+        codes = [secrets.token_hex(8).upper() for _ in range(10)]
+
+        con.execute(
+            'DELETE FROM admin_mfa_recovery_codes WHERE admin_user_id=%s AND used_at IS NULL',
+            (g.user['id'],)
+        )
+
+        for recovery_code in codes:
+            code_hash = hashlib.sha256(recovery_code.encode('ascii')).hexdigest()
+            con.execute(
+                'INSERT INTO admin_mfa_recovery_codes(admin_user_id, code_hash) VALUES(%s, %s)',
+                (g.user['id'], code_hash)
+            )
+
+    return jsonify(
+        message='Save these recovery codes somewhere private. Each code can be used once.',
+        recovery_codes=codes
+    )
 
 @bp.get('/api/admin/overview')
 @require_admin
@@ -33,6 +190,83 @@ def overview():
         owed_to_traders=float(sales['released'] - payouts['paid']),          # released to traders but not yet paid out
         paid_out=float(payouts['paid']), commission_earned=float(sales['commission_earned']),
         payouts_waiting=payouts['waiting'], open_disputes=open_disputes)
+@bp.get('/api/admin/subscription-plans')
+@require_admin
+def subscription_plans():
+    with db() as con:
+        rows = con.execute(
+            'SELECT plan, price_ngn FROM trader_subscription_plans ORDER BY plan'
+        ).fetchall()
+
+    return jsonify(plans={row['plan']: row['price_ngn'] for row in rows})
+
+
+@bp.patch('/api/admin/subscription-plans')
+@require_admin
+def update_subscription_plan():
+    data = request.get_json(silent=True) or {}
+    plan = str(data.get('plan', '')).strip()
+
+    if plan not in ('monthly', 'yearly'):
+        return jsonify(error='Choose monthly or yearly.'), 400
+
+    try:
+        price = int(data.get('price_ngn'))
+    except (TypeError, ValueError):
+        return jsonify(error='Enter a whole-number price in naira.'), 400
+
+    if not 1 <= price <= 100_000_000:
+        return jsonify(error='Enter a price between ₦1 and ₦100,000,000.'), 400
+
+    with db() as con:
+        current = con.execute(
+            """SELECT price_ngn, paystack_plan_code
+               FROM trader_subscription_plans
+               WHERE plan=%s
+               FOR UPDATE""",
+            (plan,)
+        ).fetchone()
+
+        if not current:
+            return jsonify(error='That subscription plan was not found.'), 404
+
+        try:
+            plan_code = payment_service.paystack_sync_subscription_plan(
+                plan,
+                price,
+                current['paystack_plan_code']
+            )
+        except Exception:
+            current_app.logger.exception('Could not sync subscription plan with Paystack.')
+            return jsonify(
+                error='Could not sync the plan with Paystack, so the price was not changed.'
+            ), 502
+
+        row = con.execute(
+            """UPDATE trader_subscription_plans
+               SET price_ngn=%s, paystack_plan_code=%s, updated_at=NOW()
+               WHERE plan=%s
+               RETURNING plan, price_ngn""",
+            (price, plan_code, plan)
+        ).fetchone()
+
+        con.execute(
+            """INSERT INTO admin_audit_log
+                   (admin_user_id, action, target_type, details)
+               VALUES (
+                   %s,
+                   'subscription_price_updated',
+                   'subscription_plan',
+                   jsonb_build_object(
+                       'plan', %s,
+                       'old_price_ngn', %s,
+                       'new_price_ngn', %s
+                   )
+               )""",
+            (g.user['id'], plan, current['price_ngn'], row['price_ngn'])
+        )
+
+    return jsonify(plan=row['plan'], price_ngn=row['price_ngn'])
 
 
 # ----------------------------------------------------------------------------- disputes

@@ -25,7 +25,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 import config
 from database import db, ensure_schema
 from routes import accounts, admin, deals, delivery, orders, seller, shop, wallet
-
+import maintenance
 
 def create_app():
     """Build and configure the Flask application."""
@@ -53,13 +53,20 @@ def register_hooks(app):
     """Things that run around every request."""
 
     @app.before_request
-    def make_sure_tables_exist():
+    def prepare_api_request():
         if request.path.startswith('/api/'):
             ensure_schema()
+            maintenance.run_periodically()
 
     @app.after_request
     def add_security_headers(response):
         response.headers['X-Content-Type-Options'] = 'nosniff'
+        response.headers['X-Frame-Options'] = 'DENY'
+        response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+        if request.path.startswith('/api/'):
+            response.headers['Cache-Control'] = 'no-store'
+        if request.is_secure and not config.DEBUG:
+            response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
         return response
 
     @app.get('/api/health')

@@ -4,6 +4,7 @@ Every secret and deployment-specific value comes from an environment variable
 (set in the Render dashboard), never from the code. See `.env.example`.
 """
 import os
+from cryptography.fernet import Fernet
 from decimal import Decimal
 
 # ----------------------------------------------------------------- run mode
@@ -18,6 +19,9 @@ DB_SSLMODE = os.environ.get('DB_SSLMODE', 'require')   # Neon requires SSL; loca
 PAYSTACK_SECRET_KEY = os.environ.get('PAYSTACK_SECRET_KEY', '')
 ORDER_HOLD_MINUTES = int(os.environ.get('ORDER_HOLD_MINUTES', '30'))   # how long an unpaid order keeps its stock
 
+#----------------------------------------------------------------- email (Resend)-----------------
+RESEND_API_KEY = os.environ.get('RESEND_API_KEY', '')
+RESEND_FROM_EMAIL = os.environ.get('RESEND_FROM_EMAIL', '')
 # ----------------------------------------------------------------- escrow and payouts
 # The share of each sale that S-Market Place keeps. 0 = no commission. Fixed at the moment a payment is received.
 COMMISSION_PERCENT = Decimal(os.environ.get('COMMISSION_PERCENT', '0'))
@@ -32,6 +36,16 @@ ADMIN_USER_IDS = {int(x) for x in os.environ.get('ADMIN_USER_IDS', '').split(','
 
 # ----------------------------------------------------------------- login tokens
 TOKEN_MAX_AGE = 60 * 60 * 24 * 14   # a login lasts 14 days
+
+# Encrypts authenticator-app secrets stored in the database.
+MFA_ENCRYPTION_KEY = os.environ.get('MFA_ENCRYPTION_KEY', '')
+if MFA_ENCRYPTION_KEY:
+    try:
+        Fernet(MFA_ENCRYPTION_KEY.encode())
+    except (TypeError, ValueError) as error:
+        raise RuntimeError('MFA_ENCRYPTION_KEY must be a valid Fernet key.') from error
+elif not DEBUG:
+    raise RuntimeError('MFA_ENCRYPTION_KEY must be set in production.')
 
 SECRET_KEY = os.environ.get('SECRET_KEY', '')
 if len(SECRET_KEY) < 32:

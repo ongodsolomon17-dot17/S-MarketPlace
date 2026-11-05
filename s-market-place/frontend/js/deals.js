@@ -62,10 +62,15 @@ function dealCardHTML(deal) {
 /** Load and draw all deals, then start the countdown ticker. */
 async function renderDeals() {
   const grid = document.getElementById("deals-grid");
-  // Only traders see the "Post a deal" button.
-  document.getElementById("deals-actions").innerHTML = currentUser && currentUser.role === "trader"
-    ? '<button class="primary-button" type="button" data-open-deal-editor>⚡ Post a deal</button>'
+  const trader = currentUser && currentUser.role === "trader";
+  if (trader && !traderSubscriptionLoaded) await loadTraderSubscription();
+  const canPostDeal = trader && traderHasProAccess();
+  // Only traders see the posting action; the server also checks the subscription before saving.
+  document.getElementById("deals-actions").innerHTML = trader
+    ? '<button class="primary-button" type="button" data-open-deal-editor>⚡ Post a deal <span class="pro-badge" data-pro-badge="deals" hidden>✦ PRO</span></button>'
+      + (canPostDeal ? "" : '<p class="pro-lock-note">Posting Fast Finger deals is a Pro feature. Choose a plan in your trader account centre.</p>')
     : "";
+  updateTraderProIndicators();
   grid.innerHTML = '<p class="muted">Loading deals…</p>';
   try {
     const { deals } = await apiRequest("/api/deals");
@@ -121,6 +126,7 @@ function markDealEnded(timerElement) {
    ---------------------------------------------------------------------------- */
 function openDealEditor() {
   if (!currentUser || currentUser.role !== "trader") { showToast("Only traders can post deals."); return; }
+  if (!traderHasProAccess()) { showSubscriptionUpgrade("post Fast Finger deals"); return; }
   document.getElementById("deal-form").reset();
   document.getElementById("deal-feedback").textContent = "";
   refreshSlashPreview("deal");

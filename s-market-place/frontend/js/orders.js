@@ -87,22 +87,63 @@ async function submitCheckout(event) {
 
 /** Paystack sent the buyer back with a payment reference: ask the server to confirm it, then show the result. */
 async function confirmPayment(reference) {
+  if (reference.startsWith("SMP-SUB-")) {
+    return confirmTraderSubscriptionPayment(reference);
+  }
+
   if (!currentUser || currentUser.role !== "buyer") {
     try { sessionStorage.setItem("smpPendingReference", reference); } catch (_) { /* ignore */ }
     showToast("Please log in to your buyer account to confirm your payment.");
     openAuth("login");
     return;
   }
+
   try { sessionStorage.removeItem("smpPendingReference"); } catch (_) { /* ignore */ }
   showPage("orders");
+
   try {
-    const result = await apiRequest("/api/orders/verify", { method: "POST", body: JSON.stringify({ reference }) });
+    const result = await apiRequest("/api/orders/verify", {
+      method: "POST",
+      body: JSON.stringify({ reference })
+    });
     showToast(result.message);
   } catch (error) {
     showToast(error.message);
   }
+
   renderOrders();
   loadHome();
+}
+
+async function confirmTraderSubscriptionPayment(reference) {
+  if (!currentUser || currentUser.role !== "trader") {
+    try {
+      sessionStorage.setItem("smpPendingSubscriptionReference", reference);
+    } catch (_) { /* ignore */ }
+
+    showToast("Sign in with your trader account to confirm the subscription payment.");
+    openAuth("login");
+    return;
+  }
+
+  showPage("trader-dashboard");
+
+  try {
+    const result = await apiRequest("/api/trader/subscription/verify", {
+      method: "POST",
+      body: JSON.stringify({ reference })
+    });
+
+    if (result.paid) {
+      try { sessionStorage.removeItem("smpPendingSubscriptionReference"); } catch (_) { /* ignore */ }
+    }
+
+    showToast(result.message);
+    loadTraderSubscription();
+    loadOwnedProducts();
+  } catch (error) {
+    showToast(error.message);
+  }
 }
 
 /* ----------------------------------------------------------------------------

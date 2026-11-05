@@ -185,6 +185,101 @@ SCHEMA = [
     "CREATE INDEX IF NOT EXISTS idx_flash_deals_ends ON flash_deals(ends_at)",
     "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_username_lower ON users(LOWER(username))",
     "CREATE UNIQUE INDEX IF NOT EXISTS idx_users_email_lower ON users(LOWER(email))",
+        # ---- trader subscriptions --------------------------------------------------------------------
+    """CREATE TABLE IF NOT EXISTS trader_subscriptions (
+        id BIGSERIAL PRIMARY KEY,
+        trader_id BIGINT NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+        status VARCHAR(12) NOT NULL DEFAULT 'trial'
+            CHECK(status IN ('trial','active','expired','cancelled')),
+        plan VARCHAR(10)
+            CHECK(plan IS NULL OR plan IN ('monthly','yearly')),
+        trial_starts_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        trial_ends_at TIMESTAMPTZ NOT NULL DEFAULT (NOW() + INTERVAL '7 days'),
+        current_period_starts_at TIMESTAMPTZ,
+        current_period_ends_at TIMESTAMPTZ,
+        auto_renew BOOLEAN NOT NULL DEFAULT FALSE,
+        paystack_customer_code VARCHAR(100),
+        paystack_subscription_code VARCHAR(100),
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())""",
+    "ALTER TABLE trader_subscriptions "
+    "ADD COLUMN IF NOT EXISTS paystack_subscription_email_token_encrypted TEXT",
+    "CREATE INDEX IF NOT EXISTS idx_trader_subscriptions_status_expiry "
+    "ON trader_subscriptions(status, trial_ends_at, current_period_ends_at)",
+   
+    """INSERT INTO trader_subscriptions(trader_id)
+        SELECT id FROM users WHERE role='trader'
+        ON CONFLICT (trader_id) DO NOTHING""",  
+        """CREATE TABLE IF NOT EXISTS trader_subscription_notice_log (
+        id BIGSERIAL PRIMARY KEY,
+        trader_id BIGINT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+        period_end_at TIMESTAMPTZ NOT NULL,
+        notice_type VARCHAR(12) NOT NULL
+            CHECK(notice_type IN ('five_day', 'expired')),
+        in_app_sent_at TIMESTAMPTZ,
+        email_sent_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE(trader_id, period_end_at, notice_type))""",
+
+    """CREATE TABLE IF NOT EXISTS trader_subscription_plans (
+        plan VARCHAR(10) PRIMARY KEY CHECK(plan IN ('monthly','yearly')),
+        price_ngn INTEGER NOT NULL CHECK(price_ngn > 0),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())""",
+
+    "ALTER TABLE trader_subscription_plans "
+    "ADD COLUMN IF NOT EXISTS paystack_plan_code VARCHAR(100)",
+
+    """INSERT INTO trader_subscription_plans(plan, price_ngn)
+       VALUES ('monthly', 3500), ('yearly', 37800)
+       ON CONFLICT (plan) DO NOTHING""",
+
+    """CREATE TABLE IF NOT EXISTS trader_subscription_payments (
+        id BIGSERIAL PRIMARY KEY,
+        trader_id BIGINT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+        plan VARCHAR(10) NOT NULL CHECK(plan IN ('monthly', 'yearly')),
+        amount_ngn INTEGER NOT NULL CHECK(amount_ngn > 0),
+        auto_renew BOOLEAN NOT NULL DEFAULT FALSE,
+        reference VARCHAR(120) NOT NULL UNIQUE,
+        paystack_plan_code VARCHAR(100),
+        paystack_subscription_code VARCHAR(100),
+        paystack_transaction_id VARCHAR(40),
+        status VARCHAR(12) NOT NULL DEFAULT 'pending'
+            CHECK(status IN ('pending', 'paid', 'failed')),
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        paid_at TIMESTAMPTZ,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())""",
+    "CREATE INDEX IF NOT EXISTS idx_trader_subscription_payments_trader "
+    "ON trader_subscription_payments(trader_id, created_at DESC)",
+    # ---- admin tools: audit log, MFA and recovery codes --------------------------------------------
+    """CREATE TABLE IF NOT EXISTS admin_audit_log (
+        id BIGSERIAL PRIMARY KEY,
+        admin_user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+        action VARCHAR(80) NOT NULL,
+        target_type VARCHAR(80) NOT NULL,
+        target_id BIGINT,
+        details JSONB NOT NULL DEFAULT '{}'::jsonb,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())""",
+    "CREATE INDEX IF NOT EXISTS idx_admin_audit_log_created "
+    "ON admin_audit_log(created_at DESC)",   
+    
+     """CREATE TABLE IF NOT EXISTS admin_mfa (
+        admin_user_id BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE RESTRICT,
+        secret_encrypted TEXT,
+        pending_secret_encrypted TEXT,
+        pending_secret_expires_at TIMESTAMPTZ,
+        enabled_at TIMESTAMPTZ,
+        last_used_step BIGINT NOT NULL DEFAULT -1,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())""",
+
+    """CREATE TABLE IF NOT EXISTS admin_mfa_recovery_codes (
+        id BIGSERIAL PRIMARY KEY,
+        admin_user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE RESTRICT,
+        code_hash CHAR(64) NOT NULL UNIQUE,
+        used_at TIMESTAMPTZ,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())""",
+    "CREATE INDEX IF NOT EXISTS idx_admin_mfa_recovery_available "
+    "ON admin_mfa_recovery_codes(admin_user_id) WHERE used_at IS NULL",          
 ]
 
 _schema_ready = False

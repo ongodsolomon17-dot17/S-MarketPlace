@@ -19,6 +19,10 @@ services:
         sync: false
       - key: PAYSTACK_SECRET_KEY   # Paystack dashboard > Settings > API Keys (sk_test_... or sk_live_...)
         sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        sync: false
       - key: CLOUDINARY_CLOUD_NAME
         sync: false
       - key: CLOUDINARY_API_KEY

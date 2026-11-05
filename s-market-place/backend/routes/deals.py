@@ -12,6 +12,7 @@ import maintenance
 from auth import require_role
 from database import db
 from helpers import TOO_MANY_MESSAGE, discount_percent, iso, too_many_requests
+import subscription_service
 from routes.seller import parse_money
 
 bp = Blueprint('deals', __name__)
@@ -105,6 +106,13 @@ def post_deal():
         return jsonify(error='Choose how long the deal should run (5 minutes to 24 hours).'), 400
 
     with db() as con:
+        if not subscription_service.subscription_allows_pro_features(con, g.user['id']):
+            return jsonify(
+                error='Your trial or subscription has ended. Renew to post Fast Finger deals.',
+                subscription_required=True,
+                feature='fast_finger'
+            ), 403
+
         live = con.execute("SELECT COUNT(*) AS n FROM flash_deals WHERE trader_id=%s AND sold_at IS NULL AND ends_at > NOW()",
                            (g.user['id'],)).fetchone()['n']
         if live >= MAX_LIVE_DEALS_PER_TRADER:

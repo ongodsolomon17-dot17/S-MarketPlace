@@ -5,3 +5,5 @@ flask-cors>=4.0,<6.0
 itsdangerous>=2.2,<3.0
 cloudinary>=1.41,<2.0
 requests>=2.31,<3.0
+pyotp>=2.9,<3.0
+cryptography>=45,<51

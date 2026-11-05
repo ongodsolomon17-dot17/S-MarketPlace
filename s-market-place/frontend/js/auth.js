@@ -10,6 +10,7 @@
    ============================================================================ */
 
 let activeAuthRole = "buyer";
+let adminMfaChallenge = null;
 
 /* ----------------------------------------------------------------------------
    The sign-up / log-in window
@@ -29,6 +30,8 @@ function openAuth(role = "choices") {
 /** Switch the form between "signup" and "login" for the chosen role. */
 function showAuthForm(mode, role) {
   activeAuthRole = role;
+  adminMfaChallenge = null;
+
   const signup = mode === "signup";
   const byId = id => document.getElementById(id);
 
@@ -38,8 +41,13 @@ function showAuthForm(mode, role) {
   byId("auth-role").value = role;
   byId("signup-fields").hidden = !signup;
   byId("login-fields").hidden = signup;
+  byId("admin-mfa-login-fields").hidden = true;
+  byId("admin-mfa-login-code").required = false;
+  byId("admin-mfa-login-code").value = "";
+
   document.querySelectorAll("#signup-fields input").forEach(input => { input.disabled = !signup; });
   document.querySelectorAll("#login-fields input").forEach(input => { input.disabled = signup; });
+
   byId("auth-password-label").hidden = !signup;
   byId("auth-password").hidden = !signup;
   byId("auth-password").required = signup;
@@ -49,8 +57,12 @@ function showAuthForm(mode, role) {
   byId("auth-store-name").required = signup && role === "trader";
   byId("signup-tab").classList.toggle("active", signup);
   byId("login-tab").classList.toggle("active", !signup);
-  byId("auth-title").textContent = signup ? (role === "trader" ? "Create your trader account" : "Create your buyer account") : "Welcome back";
-  byId("auth-submit").textContent = signup ? (role === "trader" ? "Create trader account" : "Create buyer account") : "Log in";
+  byId("auth-title").textContent = signup
+    ? (role === "trader" ? "Create your trader account" : "Create your buyer account")
+    : "Welcome back";
+  byId("auth-submit").textContent = signup
+    ? (role === "trader" ? "Create trader account" : "Create buyer account")
+    : "Log in";
   byId("auth-feedback").textContent = "";
 }
 
@@ -69,32 +81,79 @@ async function submitAuth(event) {
   const payload = mode === "signup"
     ? {
         role: activeAuthRole,
-        first_name: value("auth-first"), last_name: value("auth-last"),
-        username: value("auth-username"), email: value("auth-email"), phone: value("auth-phone"),
+        first_name: value("auth-first"),
+        last_name: value("auth-last"),
+        username: value("auth-username"),
+        email: value("auth-email"),
+        phone: value("auth-phone"),
         password: document.getElementById("auth-password").value,
         store_name: value("auth-store-name")
       }
-    : { identity: value("login-identity"), password: document.getElementById("login-password").value };
+    : adminMfaChallenge
+      ? {
+          challenge: adminMfaChallenge,
+          ...( /^\d{6}$/.test(value("admin-mfa-login-code"))
+            ? { code: value("admin-mfa-login-code") }
+            : { recovery_code: value("admin-mfa-login-code").toUpperCase() })
+        }
+      : {
+          identity: value("login-identity"),
+          password: document.getElementById("login-password").value
+        };
+
+  const endpoint = mode === "signup"
+    ? "/api/register"
+    : adminMfaChallenge
+      ? "/api/admin/mfa/login"
+      : "/api/login";
 
   submitButton.disabled = true;
   feedback.textContent = "Please wait…";
+
   try {
-    const result = await apiRequest(mode === "signup" ? "/api/register" : "/api/login", { method: "POST", body: JSON.stringify(payload) });
-    currentUser = result.user;
-    if (result.token) localStorage.setItem(TOKEN_KEY, result.token);
+    const result = await apiRequest(endpoint, {
+      method: "POST",
+      body: JSON.stringify(payload)
+    });
+
+    if (result.mfa_required) {
+      adminMfaChallenge = result.challenge;
+      document.getElementById("login-fields").hidden = true;
+      document.getElementById("admin-mfa-login-fields").hidden = false;
+      document.getElementById("admin-mfa-login-code").required = true;
+      document.getElementById("auth-title").textContent = "Verify it's you";
+      submitButton.textContent = "Verify code";
+      feedback.textContent = result.message;
+      document.getElementById("admin-mfa-login-code").focus();
+      return;
+    }
+
+    if (result.token) {
+      localStorage.setItem(TOKEN_KEY, result.token);
+    }
+
+    currentUser = result.user || (await apiRequest("/api/me")).user;
+    adminMfaChallenge = null;
+
     closeAuth();
     updateHeaderAccount();
     renderAccount();
     showToast(result.message);
-    loadHome();                              // the feed can now use their account's history
+    loadHome();
 
     if (currentUser.role === "trader") {
-      showPage("trader-dashboard");          // traders go straight to the add-item screen
+      showPage("trader-dashboard");
+      const pendingSubscriptionReference =
+        sessionStorage.getItem("smpPendingSubscriptionReference");
+
+      if (pendingSubscriptionReference) {
+        await confirmTraderSubscriptionPayment(pendingSubscriptionReference);
+      }
     } else if (sessionStorage.getItem("smpPendingReference")) {
-      await confirmPayment(sessionStorage.getItem("smpPendingReference"));   // they were returning from Paystack
+      await confirmPayment(sessionStorage.getItem("smpPendingReference"));
     } else if (window.checkoutPending) {
       window.checkoutPending = false;
-      await openCheckout();                  // they were in the middle of checking out
+      await openCheckout();
     }
   } catch (error) {
     feedback.textContent = error.message;

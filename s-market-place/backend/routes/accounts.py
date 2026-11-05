@@ -1,7 +1,10 @@
 """Accounts: sign up, log in, profile settings, password change and image upload."""
 import os
 import re
-
+import hashlib
+import secrets
+import payment_service
+import subscription_service
 import cloudinary.uploader
 import psycopg
 from flask import Blueprint, current_app, g, jsonify, request
@@ -9,9 +12,20 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 import config
 import image_service
-from auth import USER_COLUMNS, current_user, make_token, public_user, require_login
+from auth import (
+    USER_COLUMNS,
+    current_user,
+    make_admin_mfa_challenge,
+    make_token,
+    public_user,
+    require_login,
+    require_role,
+    read_admin_mfa_challenge
+)
+from itsdangerous import BadSignature, SignatureExpired
+import mfa_service
 from database import db
-from helpers import TOO_MANY_MESSAGE, too_many_requests
+from helpers import TOO_MANY_MESSAGE, iso, too_many_requests
 
 bp = Blueprint('accounts', __name__)
 EMAIL_PATTERN = re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
@@ -56,6 +70,12 @@ def register():
                 f'INSERT INTO users(role,first_name,last_name,username,email,phone,password_hash,store_name) '
                 f'VALUES(%s,%s,%s,%s,%s,%s,%s,%s) RETURNING {USER_COLUMNS}',
                 (role, first, last, username, email, phone, password_hash, store)).fetchone()
+            if role == 'trader':
+                con.execute(
+                    'INSERT INTO trader_subscriptions(trader_id) VALUES(%s) '
+                    'ON CONFLICT (trader_id) DO NOTHING',
+                    (row['id'],)
+                )
         return jsonify(message=f'{role.title()} account created successfully.', user=public_user(row),
                        token=make_token(row['id'], password_hash))
     except psycopg.errors.UniqueViolation:
@@ -67,20 +87,391 @@ def login():
     """Sign in with a username or email plus password."""
     if too_many_requests('login', 10, 300):
         return _too_many()
+
     data = request.get_json(silent=True) or {}
-    identity, password = str(data.get('identity', '')).strip(), str(data.get('password', ''))
+    identity = str(data.get('identity', '')).strip()
+    password = str(data.get('password', ''))
+
     with db() as con:
-        row = con.execute('SELECT * FROM users WHERE LOWER(username)=LOWER(%s) OR LOWER(email)=LOWER(%s)',
-                          (identity, identity)).fetchone()
+        row = con.execute(
+            'SELECT * FROM users WHERE LOWER(username)=LOWER(%s) OR LOWER(email)=LOWER(%s)',
+            (identity, identity)
+        ).fetchone()
+
     if not row or not check_password_hash(row['password_hash'], password):
         return jsonify(error='Incorrect username/email or password.'), 401
-    return jsonify(message='You are now signed in.', user=public_user(row), token=make_token(row['id'], row['password_hash']))
 
+    if row['id'] in config.ADMIN_USER_IDS:
+        with db() as con:
+            mfa = con.execute(
+                """SELECT enabled_at
+                   FROM admin_mfa
+                   WHERE admin_user_id=%s AND enabled_at IS NOT NULL""",
+                (row['id'],)
+            ).fetchone()
+
+        if mfa:
+            return jsonify(
+                message='Enter the code from your authenticator app.',
+                mfa_required=True,
+                challenge=make_admin_mfa_challenge(row['id'], row['password_hash'])
+            )
+
+    return jsonify(
+        message='You are now signed in.',
+        user=public_user(row),
+        token=make_token(row['id'], row['password_hash'])
+    )
+
+@bp.post('/api/admin/mfa/login')
+def complete_admin_mfa_login():
+    data = request.get_json(silent=True) or {}
+    challenge = str(data.get('challenge', '')).strip()
+    code = str(data.get('code', '')).strip()
+    recovery_code = str(data.get('recovery_code', '')).strip().upper()
+
+    if not challenge or (not code and not recovery_code):
+        return jsonify(error='Enter an authenticator code or recovery code.'), 400
+
+    if too_many_requests(f'admin-mfa-login:{challenge[:32]}', 10, 300):
+        return _too_many()
+
+    try:
+        payload = read_admin_mfa_challenge(challenge)
+    except (BadSignature, SignatureExpired, TypeError, ValueError):
+        return jsonify(error='Your sign-in challenge expired. Sign in again.'), 401
+
+    if not isinstance(payload, list) or len(payload) != 2:
+        return jsonify(error='Your sign-in challenge is invalid. Sign in again.'), 401
+
+    user_id = payload[0]
+    if not isinstance(user_id, int) or user_id not in config.ADMIN_USER_IDS:
+        return jsonify(error='This sign-in challenge is invalid.'), 401
+
+    with db() as con:
+        row = con.execute(
+            """SELECT u.password_hash, m.secret_encrypted, m.last_used_step
+               FROM users u
+               JOIN admin_mfa m ON m.admin_user_id = u.id
+               WHERE u.id=%s AND m.enabled_at IS NOT NULL""",
+            (user_id,)
+        ).fetchone()
+
+    if not row:
+        return jsonify(error='Authenticator MFA is not enabled for this admin.'), 401
+
+    if code:
+        secret = mfa_service.decrypt_secret(row['secret_encrypted'])
+        matched_step = mfa_service.matching_totp_step(secret, code)
+
+        if matched_step is None:
+            return jsonify(error='That authenticator code is invalid or expired.'), 401
+
+        with db() as con:
+            accepted = con.execute(
+                """UPDATE admin_mfa
+                   SET last_used_step=%s, updated_at=NOW()
+                   WHERE admin_user_id=%s
+                     AND enabled_at IS NOT NULL
+                     AND last_used_step < %s
+                   RETURNING admin_user_id""",
+                (matched_step, user_id, matched_step)
+            ).fetchone()
+
+        if not accepted:
+            return jsonify(error='That code was already used. Enter the current code.'), 401
+
+    else:
+        if not re.fullmatch(r'[A-F0-9]{16}', recovery_code):
+            return jsonify(error='That recovery code is invalid.'), 401
+
+        recovery_hash = hashlib.sha256(recovery_code.encode('ascii')).hexdigest()
+
+        with db() as con:
+            consumed = con.execute(
+                """UPDATE admin_mfa_recovery_codes
+                   SET used_at=NOW()
+                   WHERE admin_user_id=%s
+                     AND code_hash=%s
+                     AND used_at IS NULL
+                   RETURNING id""",
+                (user_id, recovery_hash)
+            ).fetchone()
+
+        if not consumed:
+            return jsonify(error='That recovery code is invalid or has already been used.'), 401
+
+    return jsonify(
+        message='You are now signed in.',
+        token=make_token(user_id, row['password_hash'], admin_mfa_verified=True)
+    )
 
 @bp.post('/api/logout')
 def logout():
     """Tokens live in the browser, so signing out is done there; this just confirms."""
     return jsonify(message='Signed out.')
+
+@bp.get('/api/trader/subscription')
+@require_role('trader')
+def trader_subscription():
+    with db() as con:
+        row = con.execute(
+            """SELECT status, plan, trial_starts_at, trial_ends_at,
+                      current_period_starts_at, current_period_ends_at, auto_renew,
+                      (
+                          (status = 'trial' AND trial_ends_at > NOW())
+                          OR
+                          (status = 'active' AND current_period_ends_at > NOW())
+                      ) AS can_add_products
+               FROM trader_subscriptions
+               WHERE trader_id=%s
+               FOR UPDATE""",
+            (g.user['id'],)
+        ).fetchone()
+
+        plan_rows = con.execute(
+            'SELECT plan, price_ngn FROM trader_subscription_plans ORDER BY plan'
+        ).fetchall()
+
+        if row and row['status'] in ('trial', 'active') and not row['can_add_products']:
+            con.execute(
+                """UPDATE trader_subscriptions
+                   SET status='expired', updated_at=NOW()
+                   WHERE trader_id=%s AND status IN ('trial', 'active')""",
+                (g.user['id'],)
+            )
+
+    plans = {
+        plan_row['plan']: int(plan_row['price_ngn'])
+        for plan_row in plan_rows
+    }
+
+    if not row:
+        return jsonify(subscription=None, plans=plans)
+
+    subscription = dict(row)
+
+    if subscription['status'] in ('trial', 'active') and not subscription['can_add_products']:
+        subscription['status'] = 'expired'
+
+    for field in (
+        'trial_starts_at',
+        'trial_ends_at',
+        'current_period_starts_at',
+        'current_period_ends_at'
+    ):
+        subscription[field] = iso(subscription[field])
+
+    return jsonify(subscription=subscription, plans=plans)
+
+@bp.post('/api/trader/subscription/checkout')
+@require_role('trader')
+def start_trader_subscription_checkout():
+    if too_many_requests(f'subscription-checkout:{g.user["id"]}', 5, 300):
+        return _too_many()
+
+    data = request.get_json(silent=True) or {}
+    plan = str(data.get('plan', '')).strip()
+    auto_renew = data.get('auto_renew', False)
+
+    if plan not in ('monthly', 'yearly'):
+        return jsonify(error='Choose a monthly or yearly plan.'), 400
+
+    if not isinstance(auto_renew, bool):
+        return jsonify(error='Choose whether to turn on auto-renew.'), 400
+
+    reference = f'SMP-SUB-{g.user["id"]}-{secrets.token_hex(10)}'
+
+    with db() as con:
+        subscription = con.execute(
+            'SELECT trader_id FROM trader_subscriptions WHERE trader_id=%s FOR UPDATE',
+            (g.user['id'],)
+        ).fetchone()
+
+        if not subscription:
+            return jsonify(error='Your trader subscription record was not found.'), 404
+
+        plan_row = con.execute(
+            """SELECT price_ngn, paystack_plan_code
+               FROM trader_subscription_plans
+               WHERE plan=%s
+               FOR UPDATE""",
+            (plan,)
+        ).fetchone()
+
+        if not plan_row:
+            return jsonify(error='That subscription plan is unavailable.'), 404
+
+        plan_code = plan_row['paystack_plan_code']
+
+        if auto_renew:
+            try:
+                plan_code = payment_service.paystack_sync_subscription_plan(
+                    plan, plan_row['price_ngn'], plan_code
+                )
+            except Exception:
+                current_app.logger.exception('Could not sync the Paystack subscription plan.')
+                return jsonify(error='Could not prepare this plan with Paystack.'), 502
+
+            con.execute(
+                """UPDATE trader_subscription_plans
+                   SET paystack_plan_code=%s, updated_at=NOW()
+                   WHERE plan=%s""",
+                (plan_code, plan)
+            )
+
+        con.execute(
+            """INSERT INTO trader_subscription_payments
+                   (trader_id, plan, amount_ngn, auto_renew, reference, paystack_plan_code)
+               VALUES (%s, %s, %s, %s, %s, %s)""",
+            (
+                g.user['id'],
+                plan,
+                plan_row['price_ngn'],
+                auto_renew,
+                reference,
+                plan_code if auto_renew else None
+            )
+        )
+
+    try:
+        checkout_url = payment_service.paystack_initialize_trader_subscription(
+            g.user['id'],
+            reference,
+            g.user['email'],
+            plan_row['price_ngn'],
+            plan_code if auto_renew else None
+        )
+    except Exception:
+        current_app.logger.exception('Could not initialize trader subscription payment.')
+        with db() as con:
+            con.execute(
+                """UPDATE trader_subscription_payments
+                   SET status='failed', updated_at=NOW()
+                   WHERE reference=%s AND status='pending'""",
+                (reference,)
+            )
+        return jsonify(error='Could not start the subscription payment. Please try again.'), 502
+
+    return jsonify(checkout_url=checkout_url, reference=reference)
+
+@bp.post('/api/trader/subscription/verify')
+@require_role('trader')
+def verify_trader_subscription_payment():
+    if too_many_requests(f'subscription-verify:{g.user["id"]}', 10, 300):
+        return _too_many()
+
+    data = request.get_json(silent=True) or {}
+    reference = str(data.get('reference', '')).strip()
+
+    expected_reference = rf'SMP-SUB-{g.user["id"]}-[a-f0-9]{{20}}'
+    if not re.fullmatch(expected_reference, reference):
+        return jsonify(error='That subscription payment reference is not valid.'), 400
+
+    with db() as con:
+        payment = con.execute(
+            """SELECT status
+               FROM trader_subscription_payments
+               WHERE reference=%s AND trader_id=%s""",
+            (reference, g.user['id'])
+        ).fetchone()
+
+    if not payment:
+        return jsonify(error='Subscription payment not found.'), 404
+
+    if payment['status'] == 'paid':
+        return jsonify(paid=True, message='Your subscription payment is already confirmed.')
+
+    if payment['status'] != 'pending':
+        return jsonify(paid=False, message='This subscription payment is no longer pending.'), 409
+
+    try:
+        verified = payment_service.paystack_verify(reference)
+    except Exception:
+        current_app.logger.exception('Paystack subscription verification failed.')
+        return jsonify(error='Could not reach Paystack to confirm payment. Try again shortly.'), 502
+
+    if not verified or verified.get('status') != 'success':
+        return jsonify(
+            paid=False,
+            message='Payment has not been confirmed yet. You can try checking again shortly.'
+        )
+
+    if verified.get('reference') != reference:
+        return jsonify(error='Paystack returned a different payment reference.'), 409
+
+    with db() as con:
+        result = subscription_service.settle_trader_subscription_payment(
+            con,
+            reference,
+            int(verified.get('amount', 0)),
+            verified.get('currency'),
+            verified.get('id')
+        )
+
+    if result in ('paid', 'already_paid'):
+        return jsonify(paid=True, message='Payment confirmed. Your subscription is active.')
+
+    if result == 'amount_mismatch':
+        current_app.logger.error('Subscription payment amount or currency mismatch for %s.', reference)
+        return jsonify(error='The payment amount could not be verified. Contact support.'), 409
+
+    return jsonify(error='This subscription payment could not be settled.'), 409
+
+
+@bp.post('/api/trader/subscription/auto-renew/disable')
+@require_role('trader')
+def disable_trader_subscription_auto_renew():
+    if too_many_requests(f'subscription-auto-renew:{g.user["id"]}', 5, 300):
+        return _too_many()
+
+    with db() as con:
+        subscription = con.execute(
+            """SELECT auto_renew, paystack_subscription_code,
+                      paystack_subscription_email_token_encrypted
+               FROM trader_subscriptions
+               WHERE trader_id=%s
+               FOR UPDATE""",
+            (g.user['id'],)
+        ).fetchone()
+
+    if not subscription:
+        return jsonify(error='Your subscription record was not found.'), 404
+
+    if not subscription['auto_renew']:
+        return jsonify(message='Auto-renew is already off.')
+
+    if (
+        not subscription['paystack_subscription_code']
+        or not subscription['paystack_subscription_email_token_encrypted']
+    ):
+        return jsonify(
+            error='The recurring subscription details are not ready yet. Please try again shortly.'
+        ), 409
+
+    try:
+        email_token = mfa_service.decrypt_secret(
+            subscription['paystack_subscription_email_token_encrypted']
+        )
+        payment_service.paystack_disable_subscription(
+            subscription['paystack_subscription_code'],
+            email_token
+        )
+    except Exception:
+        current_app.logger.exception('Could not disable Paystack subscription.')
+        return jsonify(error='Could not turn off auto-renew with Paystack. Please try again.'), 502
+
+    with db() as con:
+        con.execute(
+            """UPDATE trader_subscriptions
+               SET auto_renew=FALSE, updated_at=NOW()
+               WHERE trader_id=%s""",
+            (g.user['id'],)
+        )
+
+    return jsonify(
+        message='Auto-renew is off. Your current paid access remains until its end date.'
+    )
 
 
 @bp.get('/api/me')

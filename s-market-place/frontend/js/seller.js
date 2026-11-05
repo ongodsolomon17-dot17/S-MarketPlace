@@ -13,7 +13,9 @@
 
 const NEW_CATEGORY_VALUE = "__new__";   // the "my category isn't listed" choice in the dropdown
 let editingProductId = null;            // the product being edited, or null while adding a new one
-let ownedProducts = {};                 // the trader's products by id, so "Edit" can fill the form
+let ownedProducts = {};
+let traderSubscription = null;
+let traderSubscriptionLoaded = false;
 
 /* ----------------------------------------------------------------------------
    Category picker: choose from the list, or type a new category
@@ -54,10 +56,189 @@ async function loadTraderDashboard() {
     return;
   }
   document.getElementById("dashboard-store-name").textContent = currentUser.store_name || "Your shop";
-  loadEarnings();
-  loadNotifications(document.getElementById("notifications-panel"));
-  loadTraderOrders();
-  await loadOwnedProducts();
+  document.getElementById("trader-profile-name").textContent =
+    [currentUser.first_name, currentUser.last_name].filter(Boolean).join(" ") || "Trader account";
+  document.getElementById("trader-profile-handle").textContent = currentUser.username
+    ? "@" + currentUser.username
+    : "";
+  document.getElementById("trader-profile-avatar").innerHTML = avatarHTML(currentUser);
+
+  const subscriptionTask = loadTraderSubscription();
+  const tasks = [
+    subscriptionTask,
+    loadEarnings(),
+    loadNotifications(document.getElementById("notifications-panel")),
+    loadTraderOrders(),
+    loadOwnedProducts()
+  ];
+  await Promise.all(tasks);
+  document.querySelector(".trader-workspace")?.classList.toggle(
+    "has-notifications",
+    !document.getElementById("notifications-panel").hidden
+  );
+}
+
+
+
+async function loadTraderSubscription() {
+  const target = document.getElementById("trader-subscription-content");
+
+  try {
+    const { subscription, plans } = await apiRequest("/api/trader/subscription");
+    traderSubscription = subscription || null;
+    traderSubscriptionLoaded = true;
+    updateTraderProIndicators();
+
+    if (!subscription) {
+      const statusPill = document.getElementById("trader-subscription-status");
+      statusPill.textContent = "Plan unavailable";
+      statusPill.classList.add("is-expired");
+      target.innerHTML = '<p class="muted">No subscription record was found for this trader account.</p>';
+      return;
+    }
+
+    const statusLabels = {
+      trial: "Free trial",
+      active: "Active",
+      expired: "Expired",
+      cancelled: "Cancelled"
+    };
+    const status = statusLabels[subscription.status] || "Subscription";
+    const statusPill = document.getElementById("trader-subscription-status");
+    statusPill.textContent = status;
+    statusPill.classList.toggle("is-expired", subscription.status === "expired" || subscription.status === "cancelled");
+    statusPill.classList.toggle("is-active", subscription.status === "trial" || subscription.status === "active");
+    const endDate = subscription.status === "trial"
+      ? subscription.trial_ends_at
+      : (subscription.current_period_ends_at || subscription.trial_ends_at);
+    const endLabel = subscription.status === "trial"
+      ? "Trial ends"
+      : subscription.status === "active"
+        ? "Paid access through"
+        : "Access ended";
+    const periodStillActive =
+      subscription.status === "active"
+      && subscription.current_period_ends_at
+      && Date.parse(subscription.current_period_ends_at) > Date.now();
+    const canChoosePlan = !periodStillActive;
+    const selectedPlan = subscription.plan === "yearly" ? "yearly" : "monthly";
+
+    target.innerHTML = `
+      <p><strong>Status:</strong> ${status}</p>
+      ${endDate ? `<p><strong>${endLabel}:</strong> ${escapeHTML(formatDate(endDate))}</p>` : ""}
+      ${subscription.status === "active"
+        ? `<p><strong>Auto-renew:</strong> ${subscription.auto_renew ? "On" : "Off"}</p>`
+        : ""}
+      ${subscription.status === "expired"
+        ? '<p class="muted">Existing products can still be viewed and edited, and available payouts can still be requested. Adding products and posting Fast Finger deals require an active subscription.</p>'
+        : ""}
+      <div class="earn-grid">
+        <div class="earn-box"><span>Monthly</span><strong>${plans.monthly ? formatPrice(plans.monthly) : "Unavailable"}</strong></div>
+        <div class="earn-box"><span>Yearly</span><strong>${plans.yearly ? formatPrice(plans.yearly) : "Unavailable"}</strong></div>
+      </div>
+
+      ${subscription.auto_renew && periodStillActive
+        ? `<p class="muted">Your subscription will renew automatically. You can turn this off and keep access until the paid period ends.</p>
+           <button class="outline-button" type="button" data-subscription-renewal-off>Turn off auto-renew</button>`
+        : canChoosePlan
+          ? `<p class="muted">${subscription.status === "trial"
+              ? "Choosing a plan starts paid access immediately."
+              : "Choose a plan to restore Pro access."}</p>
+             <fieldset class="subscription-choice">
+               <legend>Choose a plan</legend>
+               <label><input type="radio" name="trader-subscription-plan" value="monthly" ${selectedPlan === "monthly" ? "checked" : ""}> Monthly</label>
+               <label><input type="radio" name="trader-subscription-plan" value="yearly" ${selectedPlan === "yearly" ? "checked" : ""}> Yearly</label>
+             </fieldset>
+             <label class="subscription-choice">
+               <input type="checkbox" id="trader-subscription-auto-renew">
+               Turn on auto-renew
+             </label>
+             <button class="primary-button" type="button" data-subscription-checkout>Continue to payment</button>`
+          : '<p class="muted">Your paid period is still active. You can renew after it ends.</p>'}`;
+  } catch (error) {
+    traderSubscriptionLoaded = false;
+    updateTraderProIndicators();
+    const statusPill = document.getElementById("trader-subscription-status");
+    if (statusPill) { statusPill.textContent = "Unavailable"; statusPill.classList.add("is-expired"); }
+    target.textContent = error.message;
+  }
+}
+
+function traderHasProAccess() {
+  return Boolean(traderSubscription && traderSubscription.can_add_products);
+}
+
+function updateTraderProIndicators() {
+  const locked = !traderHasProAccess();
+  document.querySelectorAll("[data-pro-badge]").forEach(badge => {
+    badge.hidden = !locked;
+  });
+}
+
+function showSubscriptionUpgrade(feature) {
+  showToast("An active trial or subscription is required to " + feature + ". Choose a plan in your trader account centre.");
+  showPage("trader-dashboard");
+  window.setTimeout(() => document.getElementById("trader-subscription-panel")?.scrollIntoView({ behavior: "smooth", block: "center" }), 80);
+}
+
+async function startTraderSubscriptionCheckout() {
+  const button = document.querySelector("[data-subscription-checkout]");
+  const selectedPlan = document.querySelector(
+    'input[name="trader-subscription-plan"]:checked'
+  );
+  const autoRenew = document.getElementById("trader-subscription-auto-renew");
+
+  if (!selectedPlan) {
+    showToast("Choose a subscription plan first.");
+    return;
+  }
+
+  const renewEnabled = Boolean(autoRenew?.checked);
+  const confirmation = renewEnabled
+    ? "You’ll be sent to Paystack to pay for this plan. It will renew automatically until you turn auto-renew off. Continue?"
+    : "You’ll be sent to Paystack to pay for this plan. Continue?";
+
+  if (!confirm(confirmation)) return;
+
+  button.disabled = true;
+
+  try {
+    const result = await apiRequest("/api/trader/subscription/checkout", {
+      method: "POST",
+      body: JSON.stringify({
+        plan: selectedPlan.value,
+        auto_renew: renewEnabled
+      })
+    });
+
+    window.location.href = result.checkout_url;
+  } catch (error) {
+    showToast(error.message);
+    button.disabled = false;
+  }
+}
+
+async function disableTraderSubscriptionAutoRenew() {
+  const button = document.querySelector("[data-subscription-renewal-off]");
+
+  if (!confirm("Turn off auto-renew? Your paid access will continue until its end date.")) {
+    return;
+  }
+
+  button.disabled = true;
+
+  try {
+    const result = await apiRequest(
+      "/api/trader/subscription/auto-renew/disable",
+      { method: "POST", body: JSON.stringify({}) }
+    );
+
+    showToast(result.message);
+    await loadTraderSubscription();
+  } catch (error) {
+    showToast(error.message);
+    button.disabled = false;
+  }
 }
 
 /** One slim row: name, price, quantity left, and an Edit button. */
@@ -134,6 +315,11 @@ function togglePriceSlash() {
 
 /** Open the pop-up. Pass a product to EDIT it, or nothing to ADD a new one. */
 async function openProductEditor(product = null) {
+  if (!product && !traderSubscriptionLoaded) await loadTraderSubscription();
+  if (!product && !traderHasProAccess()) {
+    showSubscriptionUpgrade("add products");
+    return;
+  }
   editingProductId = product ? product.id : null;
   const byId = id => document.getElementById(id);
 

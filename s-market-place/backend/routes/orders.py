@@ -16,6 +16,7 @@ import payment_service
 from auth import require_role
 from database import db
 from helpers import iso
+import subscription_service
 
 bp = Blueprint('orders', __name__)
 ORDER_REF = re.compile(config.ORDER_REF_PATTERN)
@@ -238,22 +239,95 @@ def cancel_order(order_id):
 
 @bp.post('/api/paystack/webhook')
 def paystack_webhook():
-    """Paystack calls this server-to-server when a payment succeeds, even if the buyer closed their browser."""
+    """Process signed Paystack payment and subscription events."""
     if not config.PAYSTACK_SECRET_KEY:
         return '', 503
+
     raw = request.get_data()
-    if not payment_service.webhook_signature_is_valid(raw, request.headers.get('x-paystack-signature', '')):
-        return '', 401                                       # not really from Paystack
+    if not payment_service.webhook_signature_is_valid(
+        raw,
+        request.headers.get('x-paystack-signature', '')
+    ):
+        return '', 401
+
     try:
-        event = json.loads(raw or b'{}')                     # parse the exact bytes that were signed
-        if isinstance(event, dict) and event.get('event') == 'charge.success':
-            data = event.get('data') or {}
+        event = json.loads(raw or b'{}')
+        if not isinstance(event, dict):
+            return '', 400
+
+        event_name = event.get('event')
+        data = event.get('data') or {}
+
+        if event_name == 'charge.success':
             reference = str(data.get('reference', ''))
-            match = ORDER_REF.match(reference)
-            if match:
-                order_service.settle_payment(int(match.group(1)), reference, int(data.get('amount', 0)),
-                                             data.get('currency'), current_app.logger)
-    except Exception:    # noqa: BLE001
+
+            if reference.startswith('SMP-SUB-'):
+                with db() as con:
+                    result = subscription_service.settle_trader_subscription_payment(
+                        con,
+                        reference,
+                        int(data.get('amount', 0)),
+                        data.get('currency'),
+                        data.get('id')
+                    )
+
+                if result == 'amount_mismatch':
+                    current_app.logger.error(
+                        'Subscription payment amount or currency mismatch for %s.',
+                        reference
+                    )
+            else:
+                match = ORDER_REF.match(reference)
+                if match:
+                    order_service.settle_payment(
+                        int(match.group(1)),
+                        reference,
+                        int(data.get('amount', 0)),
+                        data.get('currency'),
+                        current_app.logger
+                    )
+
+        elif event_name == 'subscription.create':
+            with db() as con:
+                linked = subscription_service.attach_paystack_subscription(con, data)
+
+            if not linked:
+                current_app.logger.error(
+                    'Could not link Paystack subscription event to a trader.'
+                )
+                return '', 500
+
+        elif event_name == 'invoice.update':
+            if data.get('paid') and data.get('status') == 'success':
+                with db() as con:
+                    applied = subscription_service.apply_paystack_invoice_update(con, data)
+
+                if not applied:
+                    current_app.logger.error(
+                        'Could not link successful Paystack invoice to a trader subscription.'
+                    )
+                    return '', 500
+        elif event_name in (
+            'invoice.payment_failed',
+            'subscription.not_renew',
+            'subscription.disable'
+        ):
+            with db() as con:
+                updated = subscription_service.mark_paystack_subscription_nonrenewing(
+                    con,
+                    data
+                )
+
+            if not updated:
+                current_app.logger.error(
+                    'Could not link Paystack non-renewal event to a trader subscription.'
+                )
+                return '', 500                
+        
+                
+
+    except Exception:
         current_app.logger.exception('Webhook processing failed')
-        return '', 500                                       # Paystack will retry later
+        return '', 500
+
     return '', 200

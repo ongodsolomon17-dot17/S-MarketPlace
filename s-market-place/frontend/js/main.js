@@ -77,6 +77,16 @@ document.addEventListener("click", async event => {
   if (target.id === "pe-pause") { await togglePauseEditing(); return; }
   const restoreButton = closest("[data-restore-product]");
   if (restoreButton) { await restoreProduct(restoreButton.dataset.restoreProduct); return; }
+  
+  if (closest("[data-subscription-checkout]")) {
+    await startTraderSubscriptionCheckout();
+    return;
+  }
+
+  if (closest("[data-subscription-renewal-off]")) {
+    await disableTraderSubscriptionAutoRenew();
+    return;
+  }
   const updateLine = closest("[data-update-item]");
   if (updateLine) { await updateOrderLine(updateLine.dataset.updateItem); return; }
 
@@ -117,13 +127,39 @@ document.addEventListener("click", async event => {
   if (closest("[data-request-payout]")) { await requestPayout(); return; }
   if (closest("[data-mark-notifications-read]")) { await markNotificationsRead(); return; }
 
+
+
   /* ---- admin ---- */
+  if (closest("[data-admin-mfa-start]")) {
+    await startAdminMfa();
+    return;
+  }
+
+  if (closest("[data-admin-mfa-confirm]")) {
+    await confirmAdminMfa();
+    return;
+  }
+  
+  if (closest("[data-admin-mfa-recovery]")) {
+    await createAdminMfaRecoveryCodes();
+    return;
+  }
+
+  const savePlanButton = closest("[data-admin-plan-save]");
+  if (savePlanButton) {
+    await saveAdminSubscriptionPlan(savePlanButton.dataset.adminPlanSave);
+    return;
+  }
   const resolveButton = closest("[data-admin-resolve]");
   if (resolveButton) { await resolveDispute(resolveButton.dataset.adminResolve, resolveButton.dataset.decision); return; }
+
   const paidButton = closest("[data-admin-paid]");
   if (paidButton) { await markPayoutPaid(paidButton.dataset.adminPaid); return; }
+
   const rejectButton = closest("[data-admin-reject]");
   if (rejectButton) { await rejectPayout(rejectButton.dataset.adminReject); return; }
+
+
 
   /* ---- buyer orders ---- */
   const payButton = closest("[data-pay-order]");

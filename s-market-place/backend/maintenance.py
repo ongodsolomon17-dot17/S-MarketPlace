@@ -12,6 +12,8 @@ import order_service
 import product_service
 from database import db
 
+import subscription_service
+
 _last_run = 0.0
 _last_purge = 0.0
 _cleanup_lock = threading.Lock()      # makes sure only one Cloudinary clean-up runs at a time
@@ -37,10 +39,15 @@ def run_periodically(force=False, background=True):
             deal_service.purge_old_deals(con)
             product_service.purge_deleted_products(con)
             escrow_service.auto_release(con)
+            subscription_service.create_due_subscription_in_app_notices(con)
             if now - _last_purge > 3600:
                 _last_purge = now
                 feed.purge_old_interactions(con)
             pictures_waiting = con.execute('SELECT 1 FROM image_cleanup LIMIT 1').fetchone() is not None
+        
+        subscription_service.send_pending_subscription_notice_emails(
+            current_app.logger
+        )
         if pictures_waiting:
             run_image_cleanup(current_app._get_current_object(), background)
     except Exception:    # noqa: BLE001 - housekeeping must never break a customer's request
