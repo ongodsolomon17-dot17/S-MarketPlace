@@ -244,7 +244,7 @@ def restore_product(product_id):
 def my_sales():
     """Paid order lines for this trader's products, with the delivery details needed to ship them."""
     with db() as con:
-        rows = con.execute("""SELECT oi.id AS item_id, oi.order_id, oi.product_name, oi.quantity, oi.unit_price, oi.fulfilment_status,
+        rows = con.execute("""SELECT oi.id AS item_id, oi.order_id, oi.product_id, oi.deal_id, oi.product_name, oi.quantity, oi.unit_price, oi.fulfilment_status,
                   oi.escrow_status, oi.seller_amount, (oi.delivery_code IS NOT NULL) AS has_code,
                   (oi.code_scanned_at IS NOT NULL) AS scanned,
                   o.paid_at, o.shipping_name, o.shipping_phone, o.shipping_address, o.shipping_city, o.shipping_state

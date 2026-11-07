@@ -280,6 +280,27 @@ SCHEMA = [
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())""",
     "CREATE INDEX IF NOT EXISTS idx_admin_mfa_recovery_available "
     "ON admin_mfa_recovery_codes(admin_user_id) WHERE used_at IS NULL",          
+
+    # ---- trader community: verified badge, followers and buyer ratings ----------------------------
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS is_verified BOOLEAN NOT NULL DEFAULT FALSE",   # set only by the superadmin
+    "ALTER TABLE users ADD COLUMN IF NOT EXISTS verified_at TIMESTAMPTZ",
+    """CREATE TABLE IF NOT EXISTS follows (
+        follower_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        trader_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        PRIMARY KEY (follower_id, trader_id),
+        CHECK (follower_id <> trader_id))""",
+    "CREATE INDEX IF NOT EXISTS idx_follows_trader ON follows(trader_id)",
+    # One rating per delivered order line. A buyer can only rate after confirming they received the item.
+    """CREATE TABLE IF NOT EXISTS trader_ratings (
+        id BIGSERIAL PRIMARY KEY,
+        order_item_id BIGINT NOT NULL UNIQUE REFERENCES order_items(id) ON DELETE CASCADE,
+        buyer_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        trader_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        stars SMALLINT NOT NULL CHECK (stars BETWEEN 1 AND 5),
+        comment TEXT NOT NULL DEFAULT '',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())""",
+    "CREATE INDEX IF NOT EXISTS idx_trader_ratings_trader ON trader_ratings(trader_id, id DESC)",
 ]
 
 _schema_ready = False

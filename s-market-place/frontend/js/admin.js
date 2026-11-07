@@ -15,6 +15,55 @@ function adminOverviewHTML(overview) {
   </div><p class="muted earn-note">These should add up to the balance of your Paystack account.</p></section>`;
 }
 
+/* ---- Verify traders: the superadmin picks a trader and gives or removes the Verified badge ---- */
+function adminTradersHTML() {
+  return `<section class="panel-list">
+    <h2>Verify traders</h2>
+    <p class="muted">Search for a trader, then give or remove the Verified badge. Shoppers see the badge on the trader's shop, products and shop list.</p>
+    <div class="list-tools">
+      <label class="list-search"><span aria-hidden="true">⌕</span><input id="admin-trader-search" type="search" placeholder="Shop name, username, name or email" autocomplete="off" maxlength="80"></label>
+      <button class="outline-button" type="button" data-admin-trader-search>Search</button>
+    </div>
+    <div id="admin-traders-list"><p class="muted">Loading traders…</p></div>
+  </section>`;
+}
+
+function adminTraderRowHTML(trader) {
+  const name = trader.store_name || `${trader.first_name} ${trader.last_name}`;
+  return `<article class="order-card admin-trader-row">
+    <div class="order-head"><h3>${escapeHTML(name)} ${verifiedBadgeHTML(trader.is_verified, true)}</h3>
+      <span class="badge ${trader.is_verified ? "badge-paid" : ""}">${trader.is_verified ? "Verified" : "Not verified"}</span></div>
+    <p class="order-meta">@${escapeHTML(trader.username)} · ${escapeHTML(trader.email)}<br>
+      ${trader.products} product(s) · ${trader.rating_count ? `${Number(trader.rating).toFixed(1)}★ from ${trader.rating_count} rating(s)` : "no ratings yet"} · joined ${escapeHTML(formatDate(trader.created_at))}</p>
+    <div class="order-actions">${trader.is_verified
+      ? `<button class="outline-button" type="button" data-admin-verify="${trader.id}" data-verified="false">Remove verification</button>`
+      : `<button class="primary-button" type="button" data-admin-verify="${trader.id}" data-verified="true">Verify trader</button>`}</div>
+  </article>`;
+}
+
+async function loadAdminTraders() {
+  const list = document.getElementById("admin-traders-list");
+  if (!list) return;
+  const query = document.getElementById("admin-trader-search")?.value.trim() || "";
+  list.innerHTML = '<p class="muted">Loading traders…</p>';
+  try {
+    const { traders } = await apiRequest(`/api/admin/traders?q=${encodeURIComponent(query)}`);
+    list.innerHTML = traders.length ? traders.map(adminTraderRowHTML).join("") : '<p class="muted">No traders matched that search.</p>';
+  } catch (error) {
+    list.innerHTML = `<p class="muted">${escapeHTML(error.message)}</p>`;
+  }
+}
+
+async function setTraderVerified(id, verified) {
+  try {
+    const result = await apiRequest(`/api/admin/traders/${id}/verify`, { method: "POST", body: JSON.stringify({ verified }) });
+    showToast(result.message);
+  } catch (error) {
+    showToast(error.message);
+  }
+  loadAdminTraders();
+}
+
 function adminSubscriptionPlansHTML(plans) {
   const monthly = Number(plans.monthly) || 3500;
   const yearly = Number(plans.yearly) || 37800;
@@ -133,9 +182,10 @@ async function renderAdmin() {
         apiRequest("/api/admin/payouts"),
         apiRequest("/api/admin/subscription-plans")
       ]);
-    target.innerHTML = adminMfaHTML() + adminSubscriptionPlansHTML(plans) + adminOverviewHTML(overview) +
+    target.innerHTML = adminMfaHTML() + adminTradersHTML() + adminSubscriptionPlansHTML(plans) + adminOverviewHTML(overview) +
       `<section class="panel-list"><h2>Disputes</h2>${disputes.length ? disputes.map(disputeCardHTML).join("") : '<p class="muted">No disputes.</p>'}</section>` +
       `<section class="panel-list"><h2>Payouts</h2>${payouts.length ? payouts.map(payoutRowHTML).join("") : '<p class="muted">No payout requests yet.</p>'}</section>`;
+    loadAdminTraders();
   } catch (error) {
     target.innerHTML = `<p class="muted">${escapeHTML(error.message)}</p>`;
   }

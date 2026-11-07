@@ -14,7 +14,7 @@ from helpers import int_arg, like_term, public_product_dict, search_tokens, too_
 bp = Blueprint('shop', __name__)
 
 # Columns every product list needs: the product plus its shop's name.
-PRODUCT_SELECT = ('SELECT p.*, u.store_name, u.username AS trader_username '
+PRODUCT_SELECT = ('SELECT p.*, u.store_name, u.username AS trader_username, u.is_verified AS trader_verified '
                   'FROM products p JOIN users u ON u.id = p.trader_id WHERE p.is_active')
 
 
@@ -77,6 +77,8 @@ def list_products():
             return jsonify(products=[], has_more=False)
         sql += ' AND p.id = ANY(%s)'
         params.append(ids)
+    else:
+        sql += ' AND p.stock > 0'                               # sold-out items are never listed (the cart still loads them by id)
     if category and category.lower() != 'all':
         sql += ' AND LOWER(p.category) = LOWER(%s)'
         params.append(category)
@@ -121,7 +123,7 @@ def related_products(product_id):
         if not current:
             return jsonify(products=[])
         rows = con.execute(
-            PRODUCT_SELECT + ' AND p.id <> %s ORDER BY (p.stock > 0) DESC, (p.category = %s) DESC, (p.trader_id = %s) DESC, p.id DESC LIMIT %s',
+            PRODUCT_SELECT + ' AND p.stock > 0 AND p.id <> %s ORDER BY (p.category = %s) DESC, (p.trader_id = %s) DESC, p.id DESC LIMIT %s',
             (product_id, current['category'], current['trader_id'], limit)).fetchall()
     return jsonify(products=[public_product_dict(row) for row in rows])
 
@@ -140,8 +142,8 @@ def list_traders():
     term = like_term(request.args.get('q', '').strip())
     with db() as con:
         rows = con.execute("""SELECT u.id, u.first_name, u.last_name, u.username, u.store_name, u.store_description,
-                  u.profile_image, COUNT(p.id)::int AS product_count
-           FROM users u LEFT JOIN products p ON p.trader_id = u.id AND p.is_active
+                  u.profile_image, u.is_verified, COUNT(p.id)::int AS product_count
+           FROM users u LEFT JOIN products p ON p.trader_id = u.id AND p.is_active AND p.stock > 0
            WHERE u.role = 'trader' AND (u.store_name ILIKE %s OR u.username ILIKE %s OR u.first_name ILIKE %s)
            GROUP BY u.id ORDER BY u.store_name LIMIT 100""", (term, term, term)).fetchall()
     return jsonify([dict(row) for row in rows])

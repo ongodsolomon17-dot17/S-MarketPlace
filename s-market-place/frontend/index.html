@@ -15,6 +15,7 @@
   <script src="/js/navigation.js" defer></script>
   <script src="/js/cart.js" defer></script>
   <script src="/js/products.js" defer></script>
+  <script src="/js/community.js" defer></script>
   <script src="/js/deals.js" defer></script>
   <script src="/js/wallet.js" defer></script>
   <script src="/js/delivery.js" defer></script>
@@ -114,14 +115,15 @@
     </section>
 
     <!-- ============================== TRADER SHOP PAGE ============================== -->
-    <section class="page-panel" id="page-store" data-page="store" hidden>
-      <section class="page-intro">
-        <p class="eyebrow">TRADER STOREFRONT</p>
-        <h1 id="store-title">Trader's shop</h1>
-        <p id="store-description">Explore this trader's products.</p>
-        <button class="outline-button" type="button" data-page-link="home">← Back to marketplace</button>
-      </section>
+    <section class="page-panel store-page" id="page-store" data-page="store" hidden>
+      <button class="management-back-button page-back-button" type="button" data-page-link="home" aria-label="Back to marketplace">←</button>
+      <div id="store-profile" class="store-profile"><p class="muted">Loading this shop…</p></div>
+      <h2 class="store-section-title">Products</h2>
       <div id="store-products" class="product-grid"></div>
+      <section class="panel-list store-reviews" id="store-reviews" hidden>
+        <h2>Buyer reviews</h2>
+        <div id="store-reviews-list"></div>
+      </section>
     </section>
 
     <!-- ============================== CART ============================== -->
@@ -141,16 +143,17 @@
           <div class="trader-profile-copy">
             <p class="trader-profile-name" id="trader-profile-name">Your account</p>
             <h1 id="dashboard-store-name">Your shop</h1>
+            <span class="verified-badge" id="dashboard-verified" hidden>✔ Verified trader</span>
             <p class="trader-profile-handle" id="trader-profile-handle"></p>
           </div>
           <button class="outline-button trader-settings-button" type="button" data-page-link="settings">
             <img src="icons/settings.png" alt="" width="20" height="20"> Settings
           </button>
         </div>
-        <div class="trader-community-row" aria-label="Community features">
-          <button class="community-preview" type="button" disabled aria-label="Following feature coming soon"><strong>—</strong><span>Following</span><small>Coming soon</small></button>
-          <button class="community-preview" type="button" disabled aria-label="Followers feature coming soon"><strong>—</strong><span>Followers</span><small>Coming soon</small></button>
-          <button class="community-preview community-message-preview" type="button" disabled aria-label="Messages feature coming soon"><strong>✉</strong><span>Messages</span><small>Coming soon</small></button>
+        <div class="trader-community-row" aria-label="Community">
+          <button class="community-preview" type="button" data-community="following"><strong id="stat-following">0</strong><span>Following</span><small>Shops you follow</small></button>
+          <button class="community-preview" type="button" data-community="followers"><strong id="stat-followers">0</strong><span>Followers</span><small>People following you</small></button>
+          <button class="community-preview community-message-preview" type="button" data-open-chat><strong>✉</strong><span>Messages</span><small id="chat-status">Coming soon</small></button>
         </div>
         <p class="trader-intro-copy">Manage your shop, track earnings, respond to orders, and keep your products up to date.</p>
       </section>
@@ -172,7 +175,13 @@
 
       <section class="panel-list dashboard-products-panel" id="trader-products-panel" aria-labelledby="trader-products-title">
         <div class="panel-title-row"><div><p class="eyebrow">YOUR SHOP</p><h2 id="trader-products-title">Products</h2></div><span class="panel-icon" aria-hidden="true">▦</span></div>
-        <p class="panel-supporting-copy">View your listings and edit existing products at any time.</p>
+        <p class="panel-supporting-copy">Tap a product to see its details, or search and sort your listings.</p>
+        <div class="list-tools" data-list-scope="products-account">
+          <label class="list-search"><span aria-hidden="true">⌕</span><input type="search" data-list-search placeholder="Search products or PRD-101" aria-label="Search products or PRD-101" autocomplete="off" maxlength="80"><button type="button" data-list-clear hidden aria-label="Clear search">×</button></label>
+          <div class="sort-wrap"><button type="button" class="outline-button sort-button" data-list-sort-toggle aria-haspopup="true" aria-expanded="false">⇅ <span data-sort-label>Newest first</span></button>
+            <div class="sort-menu" role="menu" hidden><button type="button" role="menuitem" data-list-sort-value="newest" class="is-active">Newest first</button><button type="button" role="menuitem" data-list-sort-value="oldest">Oldest first</button><button type="button" role="menuitem" data-list-sort-value="name">Name A–Z</button><button type="button" role="menuitem" data-list-sort-value="price-high">Price: high to low</button><button type="button" role="menuitem" data-list-sort-value="price-low">Price: low to high</button><button type="button" role="menuitem" data-list-sort-value="stock-low">Lowest stock first</button></div></div>
+        </div>
+        <p class="list-count muted" data-list-count aria-live="polite"></p>
         <div id="trader-own-products"><p class="muted">Loading your products…</p></div>
       </section>
 
@@ -222,18 +231,37 @@
 
     <section class="page-panel trader-management-page" id="page-trader-management" data-page="trader-management" hidden>
       <button class="management-back-button page-back-button" type="button" data-page-link="trader-dashboard" aria-label="Back to account centre">←</button>
-      <section class="page-intro"><p class="eyebrow">MORE · TRADE MANAGEMENT</p><h1>Trade management</h1><p>Review shop updates, manage your available products, and keep orders moving through delivery.</p></section>
+      <section class="page-intro"><p class="eyebrow">MORE · TRADE MANAGEMENT</p><h1>Trade management</h1><p>Review shop updates, manage your listings, and keep orders moving through delivery.</p></section>
       <nav class="management-feature-nav" aria-label="Trade management features">
-        <button type="button" class="management-feature-button" data-scroll-to="notifications-panel"><span class="management-feature-icon" aria-hidden="true">♢</span><strong>Latest notifications</strong><small>Order and account updates</small></button>
-        <button type="button" class="management-feature-button" data-scroll-to="trader-management-products-panel"><span class="management-feature-icon" aria-hidden="true">▣</span><strong>Available products</strong><small>View and edit listings</small></button>
-        <button type="button" class="management-feature-button" data-scroll-to="trader-orders-panel"><span class="management-feature-icon" aria-hidden="true">↗</span><strong>Delivery management</strong><small>Orders to fulfil and delivered</small></button>
+        <button type="button" class="management-feature-button" data-page-link="trader-notifications"><span class="management-feature-icon" aria-hidden="true">♢</span><strong>Notifications <span class="tile-count" data-tile-count="unread" hidden></span></strong><small>Order, rating and account updates</small></button>
+        <button type="button" class="management-feature-button" data-page-link="trader-products"><span class="management-feature-icon" aria-hidden="true">▣</span><strong>Listed products <span class="tile-count" data-tile-count="products" hidden></span></strong><small>Search, sort and edit listings</small></button>
+        <button type="button" class="management-feature-button" data-page-link="trader-orders"><span class="management-feature-icon" aria-hidden="true">↗</span><strong>Orders to fulfil <span class="tile-count" data-tile-count="to_fulfil" hidden></span></strong><small>Prepare, ship and deliver</small></button>
+        <button type="button" class="management-feature-button" data-page-link="trader-fulfilled"><span class="management-feature-icon" aria-hidden="true">✓</span><strong>Fulfilled orders <span class="tile-count" data-tile-count="fulfilled" hidden></span></strong><small>Delivered and paid orders</small></button>
+        <button type="button" class="management-feature-button management-shop-link" data-open-my-store><span class="management-feature-icon" aria-hidden="true">◉</span><strong>See my shop as buyers see it</strong><small>Your public shop page, rating and badge</small></button>
       </nav>
+    </section>
+
+    <section class="page-panel trader-management-page" id="page-trader-notifications" data-page="trader-notifications" hidden>
+      <button class="management-back-button page-back-button" type="button" data-page-link="trader-management" aria-label="Back to trade management">←</button>
+      <section class="page-intro"><p class="eyebrow">MORE · NOTIFICATIONS</p><h1>All notifications</h1><p>Order, payout, rating and account updates in one place.</p></section>
       <section class="panel-list management-panel" id="notifications-panel" hidden aria-labelledby="notifications-title">
         <div class="panel-title-row"><div><p class="eyebrow">LATEST UPDATES</p><h2 id="notifications-title">Notifications <span class="notif-badge" id="notif-badge" hidden></span></h2></div><span class="panel-icon" aria-hidden="true">♢</span></div>
         <div id="trader-notifications" data-notification-list></div>
       </section>
+      <p class="muted" id="notifications-empty" hidden>You have no notifications yet.</p>
+    </section>
+
+    <section class="page-panel trader-management-page" id="page-trader-products" data-page="trader-products" hidden>
+      <button class="management-back-button page-back-button" type="button" data-page-link="trader-management" aria-label="Back to trade management">←</button>
+      <section class="page-intro"><p class="eyebrow">MORE · INVENTORY</p><h1>Listed products</h1><p>Search by name, category or product ID (like PRD-101), then edit anything.</p></section>
       <section class="panel-list management-panel" id="trader-management-products-panel" aria-labelledby="management-products-title">
-        <div class="panel-title-row"><div><p class="eyebrow">INVENTORY</p><h2 id="management-products-title">Available products</h2></div><span class="panel-icon" aria-hidden="true">▣</span></div>
+        <div class="panel-title-row"><div><p class="eyebrow">INVENTORY</p><h2 id="management-products-title">Your listed products</h2></div><span class="panel-icon" aria-hidden="true">▣</span></div>
+        <div class="list-tools" data-list-scope="products-listed">
+          <label class="list-search"><span aria-hidden="true">⌕</span><input type="search" data-list-search placeholder="Search products or PRD-101" aria-label="Search products or PRD-101" autocomplete="off" maxlength="80"><button type="button" data-list-clear hidden aria-label="Clear search">×</button></label>
+          <div class="sort-wrap"><button type="button" class="outline-button sort-button" data-list-sort-toggle aria-haspopup="true" aria-expanded="false">⇅ <span data-sort-label>Newest first</span></button>
+            <div class="sort-menu" role="menu" hidden><button type="button" role="menuitem" data-list-sort-value="newest" class="is-active">Newest first</button><button type="button" role="menuitem" data-list-sort-value="oldest">Oldest first</button><button type="button" role="menuitem" data-list-sort-value="name">Name A–Z</button><button type="button" role="menuitem" data-list-sort-value="price-high">Price: high to low</button><button type="button" role="menuitem" data-list-sort-value="price-low">Price: low to high</button><button type="button" role="menuitem" data-list-sort-value="stock-low">Lowest stock first</button></div></div>
+        </div>
+        <p class="list-count muted" data-list-count aria-live="polite"></p>
         <div id="trader-management-products"><p class="muted">Loading your products…</p></div>
       </section>
       <section class="panel-list management-panel" id="deleted-panel" hidden aria-labelledby="deleted-title">
@@ -241,10 +269,35 @@
         <p class="panel-supporting-copy">Deleted products and their pictures are permanently removed after 30 days. Restore a product before then to bring it back.</p>
         <div id="trader-deleted-products"></div>
       </section>
+    </section>
+
+    <section class="page-panel trader-management-page" id="page-trader-orders" data-page="trader-orders" hidden>
+      <button class="management-back-button page-back-button" type="button" data-page-link="trader-management" aria-label="Back to trade management">←</button>
+      <section class="page-intro"><p class="eyebrow">DELIVERY MANAGEMENT</p><h1>Orders to fulfil</h1><p>Update each order as you prepare and deliver it. Search by product name, product ID, order number or buyer.</p></section>
       <section class="panel-list management-panel" id="trader-orders-panel" aria-labelledby="trader-orders-title">
-        <div class="panel-title-row"><div><p class="eyebrow">DELIVERY MANAGEMENT</p><h2 id="trader-orders-title">Orders</h2></div><span class="panel-icon" aria-hidden="true">↗</span></div>
-        <p class="panel-supporting-copy">Update each order as you prepare and deliver it.</p>
+        <div class="panel-title-row"><div><p class="eyebrow">WAITING FOR YOU</p><h2 id="trader-orders-title">Orders</h2></div><span class="panel-icon" aria-hidden="true">↗</span></div>
+        <div class="list-tools" data-list-scope="orders">
+          <label class="list-search"><span aria-hidden="true">⌕</span><input type="search" data-list-search placeholder="Search product, PRD-101, order #" aria-label="Search product, PRD-101, order #" autocomplete="off" maxlength="80"><button type="button" data-list-clear hidden aria-label="Clear search">×</button></label>
+          <div class="sort-wrap"><button type="button" class="outline-button sort-button" data-list-sort-toggle aria-haspopup="true" aria-expanded="false">⇅ <span data-sort-label>Newest first</span></button>
+            <div class="sort-menu" role="menu" hidden><button type="button" role="menuitem" data-list-sort-value="newest" class="is-active">Newest first</button><button type="button" role="menuitem" data-list-sort-value="oldest">Oldest first</button><button type="button" role="menuitem" data-list-sort-value="product">Product A–Z</button><button type="button" role="menuitem" data-list-sort-value="amount-high">Amount: high to low</button><button type="button" role="menuitem" data-list-sort-value="amount-low">Amount: low to high</button></div></div>
+        </div>
+        <p class="list-count muted" data-list-count aria-live="polite"></p>
         <div id="trader-orders"><p class="muted">Loading orders…</p></div>
+      </section>
+    </section>
+
+    <section class="page-panel trader-management-page" id="page-trader-fulfilled" data-page="trader-fulfilled" hidden>
+      <button class="management-back-button page-back-button" type="button" data-page-link="trader-management" aria-label="Back to trade management">←</button>
+      <section class="page-intro"><p class="eyebrow">DELIVERY MANAGEMENT</p><h1>Fulfilled orders</h1><p>Orders you have delivered, and whether your money has been credited.</p></section>
+      <section class="panel-list management-panel" id="trader-fulfilled-panel" aria-labelledby="trader-fulfilled-title">
+        <div class="panel-title-row"><div><p class="eyebrow">DONE</p><h2 id="trader-fulfilled-title">Fulfilled</h2></div><span class="panel-icon" aria-hidden="true">✓</span></div>
+        <div class="list-tools" data-list-scope="fulfilled">
+          <label class="list-search"><span aria-hidden="true">⌕</span><input type="search" data-list-search placeholder="Search product, PRD-101, order #" aria-label="Search product, PRD-101, order #" autocomplete="off" maxlength="80"><button type="button" data-list-clear hidden aria-label="Clear search">×</button></label>
+          <div class="sort-wrap"><button type="button" class="outline-button sort-button" data-list-sort-toggle aria-haspopup="true" aria-expanded="false">⇅ <span data-sort-label>Newest first</span></button>
+            <div class="sort-menu" role="menu" hidden><button type="button" role="menuitem" data-list-sort-value="newest" class="is-active">Newest first</button><button type="button" role="menuitem" data-list-sort-value="oldest">Oldest first</button><button type="button" role="menuitem" data-list-sort-value="product">Product A–Z</button><button type="button" role="menuitem" data-list-sort-value="amount-high">Amount: high to low</button><button type="button" role="menuitem" data-list-sort-value="amount-low">Amount: low to high</button></div></div>
+        </div>
+        <p class="list-count muted" data-list-count aria-live="polite"></p>
+        <div id="trader-fulfilled-orders"><p class="muted">Loading orders…</p></div>
       </section>
     </section>
 
@@ -608,6 +661,36 @@
   </div>
 
   <!-- ============================== TRADER: DELIVERY QR (give it to whoever delivers the item) ============================== -->
+  <div class="auth-overlay" id="owned-detail-overlay" hidden>
+    <div class="auth-backdrop" data-close-owned-product></div>
+    <section class="auth-card owned-detail-card" role="dialog" aria-modal="true" aria-label="Product details">
+      <button class="text-button owned-detail-close" type="button" data-close-owned-product>Close ✕</button>
+      <div id="owned-detail-body"></div>
+    </section>
+  </div>
+
+  <div class="auth-overlay" id="rating-overlay" hidden>
+    <div class="auth-backdrop" data-close-rating></div>
+    <section class="auth-card" role="dialog" aria-modal="true" aria-labelledby="rating-title">
+      <h2 id="rating-title">Rate this trader</h2>
+      <p class="muted" id="rating-subtitle"></p>
+      <div class="star-picker" id="star-picker" role="radiogroup" aria-label="Star rating">
+        <button type="button" role="radio" aria-checked="false" aria-label="1 star" data-star="1">★</button>
+        <button type="button" role="radio" aria-checked="false" aria-label="2 stars" data-star="2">★</button>
+        <button type="button" role="radio" aria-checked="false" aria-label="3 stars" data-star="3">★</button>
+        <button type="button" role="radio" aria-checked="false" aria-label="4 stars" data-star="4">★</button>
+        <button type="button" role="radio" aria-checked="false" aria-label="5 stars" data-star="5">★</button>
+      </div>
+      <label for="rating-comment">Comment (optional)</label>
+      <textarea id="rating-comment" rows="3" maxlength="500" placeholder="How was the item and the delivery?"></textarea>
+      <p class="muted" id="rating-feedback" aria-live="polite"></p>
+      <div class="order-actions">
+        <button class="primary-button" type="button" data-submit-rating>Submit rating</button>
+        <button class="outline-button" type="button" data-close-rating>Cancel</button>
+      </div>
+    </section>
+  </div>
+
   <div class="auth-overlay" id="qr-overlay" hidden>
     <div class="auth-backdrop" data-close-qr></div>
     <section class="auth-card" role="dialog" aria-modal="true" aria-labelledby="qr-title">

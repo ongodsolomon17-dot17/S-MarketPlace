@@ -1,3 +1,28 @@
+# Update v7: Trader screens, followers, ratings, Verified badge
+
+## What is new
+- **Trader account centre**: search + sort your products (by name, category or product ID like `PRD-101`), tap a product for a
+  details pop-up (Edit is inside it), and real **Following / Followers** counts.
+- **More screen** with live count tiles: Notifications, Listed products, Orders to fulfil, Fulfilled orders, and
+  **See my shop as buyers see it**. Each opens its own screen. Orders can be searched by product name, product ID, order number or buyer.
+- **Buyer-facing shop page**: cover, avatar, Verified badge, star rating, Products / Followers / Sold, Follow, Message, Share,
+  and buyer reviews. Shared links like `https://your-site/?shop=username` open the shop directly.
+- **Ratings**: a buyer can rate a trader (1-5 stars + optional comment) once per item, only after confirming delivery
+  (My orders -> "Rate this trader"). The trader is notified.
+- **Verified badge**: only the superadmin gives it. Admin page -> "Verify traders": search, then Verify / Remove verification.
+  Every change is written to the admin audit log and the trader is notified.
+- **Unavailable products are hidden from buyers**: sold-out, paused and deleted products no longer appear in the feed, search,
+  category lists, shop pages, related items or the shop-list product counts. (A cart that already holds an item still loads it.)
+- **Chat link**: the Message buttons say "Coming soon" until you set `window.SMP_CHAT_URL` in `frontend/js/config.js`.
+  Then **Message** opens `<chat url>?with=<trader username>&from=<buyer username>` and the trader's **Messages** button opens `<chat url>`.
+
+## Database (upgrades itself on first start, no data is touched)
+`users.is_verified`, `users.verified_at`, new tables `follows` and `trader_ratings`.
+
+## New / changed files
+- backend: `routes/community.py` (new), `routes/admin.py`, `routes/shop.py`, `routes/orders.py`, `routes/seller.py`, `database.py`, `auth.py`, `app.py`
+- frontend: `js/community.js` (new), `js/seller.js`, `js/admin.js`, `js/main.js`, `js/navigation.js`, `js/products.js`, `js/delivery.js`, `js/config.js`, `index.html`, `css/style.css`
+
 # Update v6: Escrow, delivery QR, disputes, payouts
 
 ## The big idea

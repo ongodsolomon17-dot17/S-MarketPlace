@@ -12,6 +12,8 @@ document.addEventListener("click", async event => {
   const target = event.target;
   const closest = selector => target.closest(selector);
 
+  if (handleListToolClick(target)) return;       // search / sort controls on the trader lists
+
   if (closest("[data-finance-category]")) { selectFinanceBalance(closest("[data-finance-category]").dataset.financeCategory); return; }
   if (closest("[data-toggle-balance]")) { toggleFinanceBalanceVisibility(); return; }
   if (closest("[data-finance-settings]")) {
@@ -21,10 +23,7 @@ document.addEventListener("click", async event => {
   }
   if (closest("[data-finance-notifications-all]")) {
     if (!currentUser || currentUser.role !== "trader") return;
-    showPage("trader-management");
-    const panel = document.getElementById("notifications-panel");
-    await loadNotifications(panel, 30);
-    panel?.scrollIntoView({ behavior: "smooth", block: "start" });
+    showPage("trader-notifications");
     return;
   }
 
@@ -93,7 +92,10 @@ document.addEventListener("click", async event => {
   if (closest("[data-reload-owned-products]")) { await loadOwnedProducts(); return; }
   if (closest("[data-open-product-editor]")) { await openProductEditor(); return; }
   const editButton = closest("[data-edit-product]");
-  if (editButton) { await openProductEditor(ownedProducts[editButton.dataset.editProduct]); return; }
+  if (editButton) { closeOwnedProductDetail(); await openProductEditor(ownedProducts[editButton.dataset.editProduct]); return; }
+  const viewOwned = closest("[data-view-owned-product]");
+  if (viewOwned) { openOwnedProductDetail(viewOwned.dataset.viewOwnedProduct); return; }
+  if (closest("[data-close-owned-product]")) { closeOwnedProductDetail(); return; }
   if (closest("[data-close-product-editor]")) { closeProductEditor(); return; }
   if (target.id === "pe-delete") { await deleteEditingProduct(); return; }
   if (target.id === "pe-pause") { await togglePauseEditing(); return; }
@@ -109,8 +111,6 @@ document.addEventListener("click", async event => {
     await disableTraderSubscriptionAutoRenew();
     return;
   }
-  const orderFilter = closest("[data-order-filter]");
-  if (orderFilter) { showTraderOrders(orderFilter.dataset.orderFilter); return; }
   const updateLine = closest("[data-update-item]");
   if (updateLine) { await updateOrderLine(updateLine.dataset.updateItem); return; }
 
@@ -185,6 +185,33 @@ document.addEventListener("click", async event => {
 
 
 
+  /* ---- shops, followers, chat, ratings ---- */
+  const followButton = closest("[data-follow-shop]");
+  if (followButton) { await toggleFollowShop(followButton); return; }
+  const messageButton = closest("[data-message-trader]");
+  if (messageButton) { openChat(messageButton.dataset.messageTrader); return; }
+  const shareButton = closest("[data-share-shop]");
+  if (shareButton) { await shareShop(shareButton.dataset.shareShop); return; }
+  if (closest("[data-open-my-store]")) { openMyStore(); return; }
+  if (closest("[data-open-chat]")) { openChat(); return; }
+  const community = closest("[data-community]");
+  if (community) {
+    if (community.dataset.community === "followers") openMyStore();
+    else showToast(traderSummary ? `You follow ${traderSummary.following} shop${traderSummary.following === 1 ? "" : "s"}.` : "Loading…");
+    return;
+  }
+  const rateButton = closest("[data-open-rating]");
+  if (rateButton) { openRating(rateButton.dataset.openRating); return; }
+  if (closest("[data-close-rating]")) { closeRating(); return; }
+  const star = closest("[data-star]");
+  if (star) { ratingStars = Number(star.dataset.star); paintRatingStars(); return; }
+  if (closest("[data-submit-rating]")) { await submitRating(); return; }
+
+  /* ---- admin: verify traders ---- */
+  const verifyButton = closest("[data-admin-verify]");
+  if (verifyButton) { verifyButton.disabled = true; await setTraderVerified(verifyButton.dataset.adminVerify, verifyButton.dataset.verified === "true"); return; }
+  if (closest("[data-admin-trader-search]")) { await loadAdminTraders(); return; }
+
   /* ---- buyer orders ---- */
   const payButton = closest("[data-pay-order]");
   if (payButton) { payButton.disabled = true; await payOrder(payButton.dataset.payOrder); return; }
@@ -196,6 +223,19 @@ document.addEventListener("click", async event => {
 document.addEventListener("keydown", event => {
   const opener = event.target.closest?.("[data-open-product][role='button']");
   if (opener && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); openProduct(opener.dataset.openProduct); }
+});
+
+/* Search boxes on the trader lists filter as you type. */
+document.addEventListener("input", event => {
+  if (event.target.matches?.("[data-list-search]")) handleListSearchInput(event.target);
+});
+
+/* Enter on a product picture/name in the trader lists opens its details. */
+document.addEventListener("keydown", event => {
+  const opener = event.target.closest?.("[data-view-owned-product][role='button']");
+  if (opener && (event.key === "Enter" || event.key === " ")) { event.preventDefault(); openOwnedProductDetail(opener.dataset.viewOwnedProduct); }
+  if (event.key === "Enter" && event.target.id === "admin-trader-search") { event.preventDefault(); loadAdminTraders(); }
+  if (event.key === "Escape") { closeSortMenus(); closeOwnedProductDetail(); closeRating(); }
 });
 
 /* Search box: Enter searches. */
@@ -253,4 +293,11 @@ window.addEventListener("pageshow", event => { if (event.persisted) window.locat
   const startupTasks = [refreshCartCount(), loadCategoryChips(), loadTraders(), loadHome()];
   if (currentUser && currentUser.role === "trader") startupTasks.push(loadTraderSubscription());
   await Promise.all(startupTasks);
+
+  // 4. A shared shop link (…/?shop=username) opens that shop.
+  const sharedShop = params.get("shop");
+  if (sharedShop) {
+    window.history.replaceState({}, "", window.location.pathname);
+    await openStore(sharedShop);
+  }
 })();

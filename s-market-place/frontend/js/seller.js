@@ -69,7 +69,7 @@ async function loadTraderDashboard() {
   const subscriptionTask = traderSubscriptionUserId === currentUser.id && traderSubscriptionLoaded
     ? Promise.resolve()
     : loadTraderSubscription();
-  await Promise.all([subscriptionTask, loadOwnedProducts()]);
+  await Promise.all([subscriptionTask, loadOwnedProducts(), loadTraderSummary()]);
 }
 
 function openTraderCreatePanel() {
@@ -132,14 +132,36 @@ async function loadTraderFinance() {
 
 async function loadTraderManagement() {
   if (!currentUser || currentUser.role !== "trader") { openAuth("trader"); return; }
-  await Promise.all([
-    loadNotifications(document.getElementById("notifications-panel"), 30),
-    loadTraderOrders(),
-    loadOwnedProducts()
-  ]);
+  await loadTraderSummary();
 }
 
+/** The whole notifications list (More → Notifications). */
+async function loadTraderNotificationsPage() {
+  if (!currentUser || currentUser.role !== "trader") { openAuth("trader"); return; }
+  const panel = document.getElementById("notifications-panel");
+  await loadNotifications(panel, 100);
+  document.getElementById("notifications-empty").hidden = !panel.hidden;
+}
 
+/** Counts for the dashboard (followers, following, messages) and the More screen tiles. */
+let traderSummary = null;
+async function loadTraderSummary() {
+  try {
+    traderSummary = await apiRequest("/api/trader/summary");
+  } catch (_) { return; }
+  const set = (id, value) => { const element = document.getElementById(id); if (element) element.textContent = value; };
+  set("stat-followers", traderSummary.followers);
+  set("stat-following", traderSummary.following);
+  document.querySelectorAll("[data-tile-count]").forEach(tile => {
+    const value = traderSummary[tile.dataset.tileCount] ?? 0;
+    tile.textContent = value;
+    tile.hidden = value === 0;
+  });
+  const verified = document.getElementById("dashboard-verified");
+  if (verified) verified.hidden = !traderSummary.is_verified;
+  if (currentUser) currentUser.is_verified = traderSummary.is_verified;
+  refreshChatStatus();
+}
 
 async function loadTraderSubscription() {
   const target = document.getElementById("trader-subscription-content");
@@ -321,14 +343,119 @@ async function disableTraderSubscriptionAutoRenew() {
   }
 }
 
-/** Product tile: picture, price, stock and the existing Edit action. */
+/* ----------------------------------------------------------------------------
+   Search + sort tools (used by the product lists and the order lists)
+   Each list has a "scope"; its search text and sort choice are remembered here.
+   ---------------------------------------------------------------------------- */
+const listState = {};
+function listStateFor(scope) {
+  if (!listState[scope]) listState[scope] = { query: "", sort: "newest" };
+  return listState[scope];
+}
+
+function productCode(product) { return `PRD-${product.id}`; }
+
+/** Does `text` match every word typed (or the exact product ID, like PRD-101 / 101)? */
+function matchesSearch(haystack, query) {
+  const words = query.toLowerCase().split(/\s+/).filter(Boolean);
+  return words.every(word => haystack.includes(word));
+}
+
+function filterProducts(products, query) {
+  if (!query.trim()) return products;
+  return products.filter(product => matchesSearch(`${product.name} ${product.category} ${productCode(product)} ${product.id}`.toLowerCase(), query));
+}
+
+function sortProducts(products, sort) {
+  const list = [...products];
+  const by = {
+    newest: (a, b) => b.id - a.id,
+    oldest: (a, b) => a.id - b.id,
+    name: (a, b) => a.name.localeCompare(b.name),
+    "price-high": (a, b) => b.price - a.price,
+    "price-low": (a, b) => a.price - b.price,
+    "stock-low": (a, b) => a.stock - b.stock
+  };
+  return list.sort(by[sort] || by.newest);
+}
+
+function updateListCount(scope, shown, total, noun) {
+  const label = document.querySelector(`[data-list-scope="${scope}"] + [data-list-count]`);
+  if (!label) return;
+  const word = total === 1 ? noun : `${noun}s`;
+  label.textContent = shown === total ? `${total} ${word}` : `${shown} of ${total} ${word}`;
+}
+
+function closeSortMenus() {
+  document.querySelectorAll(".sort-menu").forEach(menu => { menu.hidden = true; });
+  document.querySelectorAll("[data-list-sort-toggle]").forEach(button => button.setAttribute("aria-expanded", "false"));
+}
+
+function renderListScope(scope) {
+  if (scope.startsWith("products")) renderOwnedProducts();
+  else renderTraderOrderLists();
+}
+
+/** Clicks on search/sort controls. Returns true when the click belonged to them. */
+function handleListToolClick(target) {
+  const toggle = target.closest("[data-list-sort-toggle]");
+  if (toggle) {
+    const menu = toggle.parentElement.querySelector(".sort-menu");
+    const opening = menu.hidden;
+    closeSortMenus();
+    menu.hidden = !opening;
+    toggle.setAttribute("aria-expanded", String(opening));
+    return true;
+  }
+  const choice = target.closest("[data-list-sort-value]");
+  if (choice) {
+    const tools = choice.closest("[data-list-scope]");
+    const scope = tools.dataset.listScope;
+    listStateFor(scope).sort = choice.dataset.listSortValue;
+    tools.querySelectorAll("[data-list-sort-value]").forEach(button => button.classList.toggle("is-active", button === choice));
+    tools.querySelector("[data-sort-label]").textContent = choice.textContent;
+    closeSortMenus();
+    renderListScope(scope);
+    return true;
+  }
+  const clear = target.closest("[data-list-clear]");
+  if (clear) {
+    const tools = clear.closest("[data-list-scope]");
+    const input = tools.querySelector("[data-list-search]");
+    input.value = "";
+    handleListSearchInput(input);
+    input.focus();
+    return true;
+  }
+  if (!target.closest(".sort-wrap")) closeSortMenus();
+  return false;
+}
+
+function handleListSearchInput(input) {
+  const tools = input.closest("[data-list-scope]");
+  const scope = tools.dataset.listScope;
+  listStateFor(scope).query = input.value;
+  tools.querySelector("[data-list-clear]").hidden = input.value === "";
+  renderListScope(scope);
+}
+
+/* ----------------------------------------------------------------------------
+   Product tiles (dashboard), rows (listed products) and the details pop-up
+   ---------------------------------------------------------------------------- */
+function productStatusText(product) {
+  if (product.is_paused) return "Paused · hidden from buyers";
+  if (product.stock <= 0) return "Sold out · hidden from buyers";
+  return "Live · buyers can see it";
+}
+
+/** Product tile: picture, price, stock. Tap it to see the details; Edit opens the editor. */
 function ownedProductHTML(product) {
   const quantity = product.stock > 0 ? `${product.stock} left` : "Sold out";
   const hint = product.show_quantity ? "" : " · buyers see “In stock”";
   const image = product.image ? imageURL(product.image) : "";
   return `
     <article class="owned-product-card">
-      <div class="owned-product-media">
+      <div class="owned-product-media" data-view-owned-product="${product.id}" role="button" tabindex="0" aria-label="View ${escapeHTML(product.name)}">
         ${image
           ? `<img src="${escapeHTML(image)}" alt="${escapeHTML(product.name)}" loading="lazy" onerror="this.style.display='none'">`
           : '<span class="owned-product-placeholder" aria-hidden="true">＋</span>'}
@@ -337,12 +464,71 @@ function ownedProductHTML(product) {
       </div>
       <div class="owned-product-card-body">
         <small>${escapeHTML(product.category || "Product")}</small>
-        <strong>${escapeHTML(product.name)}</strong>
+        <strong data-view-owned-product="${product.id}" role="button" tabindex="0">${escapeHTML(product.name)}</strong>
         <span class="owned-product-price">${formatPrice(product.price)}</span>
-        <small>${escapeHTML(hint.trim())}</small>
+        <small>${productCode(product)}${escapeHTML(hint)}</small>
         <button type="button" class="outline-button" data-edit-product="${product.id}">Edit product</button>
       </div>
     </article>`;
+}
+
+/** A slim row for the Listed products screen. */
+function listedProductRowHTML(product) {
+  const image = product.image ? imageURL(product.image) : "";
+  const stock = product.stock > 0 ? `${product.stock} left` : "Sold out";
+  return `
+    <article class="listed-product">
+      <button type="button" class="listed-thumb" data-view-owned-product="${product.id}" aria-label="View ${escapeHTML(product.name)}">${image
+        ? `<img src="${escapeHTML(image)}" alt="" loading="lazy" onerror="this.style.display='none'">` : "▧"}</button>
+      <div class="listed-info" data-view-owned-product="${product.id}" role="button" tabindex="0">
+        <strong>${escapeHTML(product.name)}</strong>
+        <small>${productCode(product)} · ${formatPrice(product.price)} · ${escapeHTML(stock)}${product.is_paused ? " · Paused" : ""}</small>
+      </div>
+      <button type="button" class="outline-button" data-edit-product="${product.id}">Edit</button>
+    </article>`;
+}
+
+const EMPTY_PRODUCTS_HTML = '<div class="owned-products-empty"><span class="empty-product-icon" aria-hidden="true">▧</span><h3>No products listed yet</h3><p>Your products will appear here after you add them to your shop.</p><button class="primary-button" type="button" data-open-create-panel>Add your first product</button></div>';
+
+function renderProductScope(scope, target, products, htmlFor) {
+  if (!target) return;
+  const state = listStateFor(scope);
+  const shown = sortProducts(filterProducts(products, state.query), state.sort);
+  updateListCount(scope, shown.length, products.length, "product");
+  if (!products.length) target.innerHTML = EMPTY_PRODUCTS_HTML;
+  else if (!shown.length) target.innerHTML = `<p class="muted list-empty">No products match “${escapeHTML(state.query)}”.</p>`;
+  else target.innerHTML = shown.map(htmlFor).join("");
+}
+
+function renderOwnedProducts() {
+  const products = Object.values(ownedProducts);
+  renderProductScope("products-account", document.getElementById("trader-own-products"), products, ownedProductHTML);
+  renderProductScope("products-listed", document.getElementById("trader-management-products"), products, listedProductRowHTML);
+}
+
+function openOwnedProductDetail(id) {
+  const product = ownedProducts[id];
+  if (!product) return;
+  const image = product.image ? imageURL(product.image) : "";
+  document.getElementById("owned-detail-body").innerHTML = `
+    <div class="owned-detail-media">${image ? `<img src="${escapeHTML(image)}" alt="${escapeHTML(product.name)}" onerror="this.style.display='none'">` : '<span aria-hidden="true">▧</span>'}</div>
+    <p class="eyebrow">${escapeHTML(product.category || "Product")} · ${productCode(product)}</p>
+    <h2>${escapeHTML(product.name)}</h2>
+    <div class="detail-price">${priceHTML(product)}</div>
+    <dl class="owned-facts">
+      <div><dt>Stock</dt><dd>${product.stock}</dd></div>
+      <div><dt>Buyers see</dt><dd>${product.show_quantity ? "Exact quantity" : "“In stock”"}</dd></div>
+      <div class="wide"><dt>Status</dt><dd>${escapeHTML(productStatusText(product))}</dd></div>
+    </dl>
+    <p class="detail-description">${escapeHTML(product.description || "No description yet.")}</p>
+    <div class="order-actions"><button class="primary-button" type="button" data-edit-product="${product.id}">Edit product</button>
+      <button class="outline-button" type="button" data-close-owned-product>Close</button></div>`;
+  document.getElementById("owned-detail-overlay").hidden = false;
+}
+
+function closeOwnedProductDetail() {
+  const overlay = document.getElementById("owned-detail-overlay");
+  if (overlay) overlay.hidden = true;
 }
 
 /** One row in "Recently deleted": the name, how long until it is erased for good, and a Restore button. */
@@ -360,19 +546,14 @@ function deletedProductHTML(product) {
 
 /** Load the trader's live + paused products, and the products waiting out their 30 days. */
 async function loadOwnedProducts() {
-  const target = document.getElementById("trader-own-products");
-  const managementTarget = document.getElementById("trader-management-products");
-  const productTargets = [target, managementTarget].filter(Boolean);
+  const productTargets = [document.getElementById("trader-own-products"), document.getElementById("trader-management-products")].filter(Boolean);
   const deletedPanel = document.getElementById("deleted-panel");
   productTargets.forEach(element => { element.innerHTML = '<p class="product-loading muted">Loading your products…</p>'; });
   try {
     const [products, deleted] = await Promise.all([apiRequest("/api/trader/products"), apiRequest("/api/trader/products/deleted")]);
     if (!Array.isArray(products) || !Array.isArray(deleted)) throw new Error("The products response from the server was not in the expected format.");
     ownedProducts = Object.fromEntries(products.map(product => [product.id, product]));
-    const productMarkup = products.length
-      ? products.map(ownedProductHTML).join("")
-      : `<div class="owned-products-empty"><span class="empty-product-icon" aria-hidden="true">▧</span><h3>No products listed yet</h3><p>Your products will appear here after you add them to your shop.</p><button class="primary-button" type="button" data-open-create-panel>Add your first product</button></div>`;
-    productTargets.forEach(element => { element.innerHTML = productMarkup; });
+    renderOwnedProducts();
     deletedPanel.hidden = deleted.length === 0;                      // only show the panel when there is something in it
     document.getElementById("trader-deleted-products").innerHTML = deleted.map(deletedProductHTML).join("");
   } catch (error) {
@@ -546,22 +727,30 @@ async function deleteEditingProduct() {
 }
 
 /* ----------------------------------------------------------------------------
-   Orders to fulfil
-   Each row shows the buyer, a "condition" dropdown and a Save update button.
-   The delivery address is tucked into a small "Delivery details" fold-out.
+   Orders: "to fulfil" and "fulfilled" are separate screens, each searchable and sortable.
+   Every order line shows its product ID (PRD-101) so it can be found quickly.
    ---------------------------------------------------------------------------- */
-async function loadTraderOrders() {
-  const target = document.getElementById("trader-orders");
-  if (!target) return;
-  target.innerHTML = '<p class="muted">Loading orders…</p>';
-  try {
-    const data = await apiRequest("/api/trader/orders");
-    const summary = `<p class="muted">Total paid sales: <strong>${formatPrice(data.total_sales)}</strong></p>`;
-    const orderCards = data.orders.map(line => `
+let traderOrderLines = [];
+let traderTotalSales = 0;
+
+function orderLineCode(line) { return line.product_id ? `PRD-${line.product_id}` : line.deal_id ? `DEAL-${line.deal_id}` : ""; }
+
+function orderLineHTML(line, fulfilled) {
+  const paidOut = line.escrow_status === "released";
+  const chip = fulfilled
+    ? `<span class="badge ${paidOut ? "badge-paid" : line.escrow_status === "disputed" ? "badge-bad" : "badge-pending"}">${paidOut ? "Credited" : line.escrow_status === "disputed" ? "On hold" : "Delivered"}</span>` : "";
+  const controls = fulfilled ? "" : `
+          <select data-item-status="${line.item_id}" aria-label="Delivery condition">
+            ${Object.entries(FULFILMENT).map(([key, text]) =>
+              `<option value="${key}" ${key === line.fulfilment_status ? "selected" : ""} ${key === "Pending" ? "disabled" : ""}>${text}</option>`).join("")}
+          </select>
+          <button type="button" class="outline-button" data-update-item="${line.item_id}">Save update</button>`;
+  return `
       <article class="order-line compact">
         <div class="order-line-main">
           <strong>${escapeHTML(line.shipping_name)}</strong>
-          <small>${escapeHTML(line.product_name)} × ${line.quantity} · Order #${line.order_id}</small>
+          <small>${escapeHTML(line.product_name)} × ${line.quantity} · Order #${line.order_id}${orderLineCode(line) ? ` · ${orderLineCode(line)}` : ""}</small>
+          <small>${formatPrice(line.unit_price * line.quantity)}${line.paid_at ? ` · paid ${escapeHTML(formatDate(line.paid_at))}` : ""}</small>
           <details class="delivery-details">
             <summary>Delivery details</summary>
             <p>${escapeHTML(line.shipping_phone)}<br>${escapeHTML(line.shipping_address)}, ${escapeHTML(line.shipping_city)}, ${escapeHTML(line.shipping_state)}</p>
@@ -569,34 +758,58 @@ async function loadTraderOrders() {
           <small class="escrow-line">${escrowLineText(line)}</small>
         </div>
         <div class="order-line-actions">
-          <select data-item-status="${line.item_id}" aria-label="Delivery condition">
-            ${Object.entries(FULFILMENT).map(([key, text]) =>
-              `<option value="${key}" ${key === line.fulfilment_status ? "selected" : ""} ${key === "Pending" ? "disabled" : ""}>${text}</option>`).join("")}
-          </select>
-          <button type="button" class="outline-button" data-update-item="${line.item_id}">Save update</button>
+          ${chip}${controls}
           ${line.escrow_status === "held" && !line.scanned ? `<button type="button" class="outline-button" data-delivery-qr="${line.item_id}">Delivery QR</button>` : ""}
           ${line.scanned && line.escrow_status === "held" ? '<span class="badge badge-paid">Package confirmed</span>' : ""}
         </div>
-      </article>`);
-    const toFulfil = data.orders.filter(line => line.fulfilment_status !== "Delivered");
-    const fulfilled = data.orders.filter(line => line.fulfilment_status === "Delivered");
-    const cardMap = new Map(data.orders.map((line, index) => [line.item_id, orderCards[index]]));
-    target.innerHTML = summary + `
-      <div class="order-filter-tabs" role="tablist" aria-label="Delivery orders">
-        <button type="button" class="order-filter is-active" data-order-filter="fulfil">Orders to fulfil <span>${toFulfil.length}</span></button>
-        <button type="button" class="order-filter" data-order-filter="fulfilled">Fulfilled <span>${fulfilled.length}</span></button>
-      </div>
-      <div class="trader-order-list" data-order-list="fulfil">${toFulfil.length ? toFulfil.map(line => cardMap.get(line.item_id)).join("") : '<p class="muted">No orders are waiting for fulfilment.</p>'}</div>
-      <div class="trader-order-list" data-order-list="fulfilled" hidden>${fulfilled.length ? fulfilled.map(line => cardMap.get(line.item_id)).join("") : '<p class="muted">Delivered orders will appear here.</p>'}</div>`;
-    showTraderOrders("fulfil");
-  } catch (error) {
-    target.innerHTML = `<p class="muted">${escapeHTML(error.message)}</p>`;
-  }
+      </article>`;
 }
 
-function showTraderOrders(tab) {
-  document.querySelectorAll("[data-order-list]").forEach(list => { list.hidden = list.dataset.orderList !== tab; });
-  document.querySelectorAll("[data-order-filter]").forEach(button => button.classList.toggle("is-active", button.dataset.orderFilter === tab));
+function filterOrderLines(lines, query) {
+  if (!query.trim()) return lines;
+  return lines.filter(line => matchesSearch(
+    `${line.product_name} ${orderLineCode(line)} ${line.product_id || ""} order ${line.order_id} #${line.order_id} ${line.shipping_name}`.toLowerCase(), query));
+}
+
+function sortOrderLines(lines, sort) {
+  const amount = line => line.unit_price * line.quantity;
+  const time = line => Date.parse(line.paid_at || "") || 0;
+  const by = {
+    newest: (a, b) => time(b) - time(a) || b.item_id - a.item_id,
+    oldest: (a, b) => time(a) - time(b) || a.item_id - b.item_id,
+    product: (a, b) => a.product_name.localeCompare(b.product_name),
+    "amount-high": (a, b) => amount(b) - amount(a),
+    "amount-low": (a, b) => amount(a) - amount(b)
+  };
+  return [...lines].sort(by[sort] || by.newest);
+}
+
+function renderOrderScope(scope, target, lines, fulfilled) {
+  if (!target) return;
+  const state = listStateFor(scope);
+  const shown = sortOrderLines(filterOrderLines(lines, state.query), state.sort);
+  updateListCount(scope, shown.length, lines.length, "order");
+  if (!lines.length) target.innerHTML = `<p class="muted">${fulfilled ? "Delivered orders will appear here." : "No orders are waiting for fulfilment."}</p>`;
+  else if (!shown.length) target.innerHTML = `<p class="muted list-empty">No orders match “${escapeHTML(state.query)}”.</p>`;
+  else target.innerHTML = `<div class="trader-order-list">${shown.map(line => orderLineHTML(line, fulfilled)).join("")}</div>`;
+}
+
+function renderTraderOrderLists() {
+  renderOrderScope("orders", document.getElementById("trader-orders"), traderOrderLines.filter(line => line.fulfilment_status !== "Delivered"), false);
+  renderOrderScope("fulfilled", document.getElementById("trader-fulfilled-orders"), traderOrderLines.filter(line => line.fulfilment_status === "Delivered"), true);
+}
+
+async function loadTraderOrders() {
+  const targets = [document.getElementById("trader-orders"), document.getElementById("trader-fulfilled-orders")].filter(Boolean);
+  targets.forEach(target => { target.innerHTML = '<p class="muted">Loading orders…</p>'; });
+  try {
+    const data = await apiRequest("/api/trader/orders");
+    traderOrderLines = data.orders;
+    traderTotalSales = data.total_sales;
+    renderTraderOrderLists();
+  } catch (error) {
+    targets.forEach(target => { target.innerHTML = `<p class="muted">${escapeHTML(error.message)}</p>`; });
+  }
 }
 
 /** One short line about this order's money (it is held in escrow until the buyer confirms delivery). */

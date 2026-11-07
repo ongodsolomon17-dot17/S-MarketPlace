@@ -173,7 +173,7 @@ async function loadTraders() {
           ? `<img src="${escapeHTML(trader.profile_image)}" alt="" class="avatar-image">`
           : escapeHTML((trader.store_name || trader.first_name || "T").slice(0, 1).toUpperCase())}</div>
         <div class="trader-card-copy">
-          <h4>${escapeHTML(trader.store_name || `${trader.first_name} ${trader.last_name}`)}</h4>
+          <h4>${escapeHTML(trader.store_name || `${trader.first_name} ${trader.last_name}`)} ${verifiedBadgeHTML(trader.is_verified, true)}</h4>
           <p>@${escapeHTML(trader.username)} · ${trader.product_count} listed item(s)</p>
           <small>${escapeHTML(trader.store_description || "Browse this trader's products.")}</small>
         </div>
@@ -181,24 +181,6 @@ async function loadTraders() {
       </article>`).join("") : '<p class="muted">No trader shops matched that search yet.</p>';
   } catch (error) {
     target.innerHTML = `<p class="muted">${escapeHTML(error.message)}</p>`;
-  }
-}
-
-/** Open one trader's public shop page. */
-async function openStore(username) {
-  if (!username) return;
-  showPage("store");
-  const grid = document.getElementById("store-products");
-  grid.innerHTML = '<p class="muted">Loading this shop…</p>';
-  try {
-    const traders = await apiRequest(`/api/traders?q=${encodeURIComponent(username)}`);
-    const trader = traders.find(item => item.username === username);
-    const { products } = await apiRequest(`/api/products?trader=${encodeURIComponent(username)}&limit=100`);
-    document.getElementById("store-title").textContent = trader?.store_name || `${username}'s shop`;
-    document.getElementById("store-description").textContent = trader?.store_description || "Explore the products listed by this trader.";
-    grid.innerHTML = products.length ? products.map(productCardHTML).join("") : '<p class="muted">This trader has not listed products yet.</p>';
-  } catch (error) {
-    grid.innerHTML = `<p class="muted">${escapeHTML(error.message)}</p>`;
   }
 }
 
@@ -217,7 +199,7 @@ function productDetailHTML(product) {
       ? `<img src="${escapeHTML(image)}" alt="${escapeHTML(product.name)}" onerror="this.style.display='none'">`
       : '<div class="image-placeholder">✦<small>No photo</small></div>'}</div>
     <div class="detail-info">
-      <p class="product-category">${escapeHTML(product.category)} · <button class="inline-store-link" type="button" data-open-store="${escapeHTML(product.trader_username || "")}">${escapeHTML(product.store_name || "Trader shop")}</button></p>
+      <p class="product-category">${escapeHTML(product.category)} · <button class="inline-store-link" type="button" data-open-store="${escapeHTML(product.trader_username || "")}">${escapeHTML(product.store_name || "Trader shop")}</button> ${verifiedBadgeHTML(product.trader_verified, true)}</p>
       <h1 class="detail-title">${escapeHTML(product.name)}</h1>
       <div class="detail-price">${priceHTML(product)}</div>
       <span class="availability inline ${available ? "" : "sold-out"}">${stockLabel(product)}</span>

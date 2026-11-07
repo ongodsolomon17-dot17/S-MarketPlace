@@ -13,7 +13,7 @@ import config
 from database import db
 
 # Columns of the users table that are safe to send to the browser (never the password hash).
-USER_COLUMNS = 'id,role,first_name,last_name,username,email,phone,store_name,store_description,profile_image,created_at'
+USER_COLUMNS = 'id,role,first_name,last_name,username,email,phone,store_name,store_description,profile_image,is_verified,created_at'
 
 serializer = URLSafeTimedSerializer(config.SECRET_KEY, salt='smp-auth-v1')
 admin_mfa_challenge_serializer = URLSafeTimedSerializer(

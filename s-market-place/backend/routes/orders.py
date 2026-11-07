@@ -156,13 +156,14 @@ def my_orders():
     with db() as con:
         orders = con.execute('SELECT * FROM orders WHERE buyer_id=%s ORDER BY id DESC LIMIT 50', (g.user['id'],)).fetchall()
         items = con.execute("""SELECT oi.id, oi.order_id, oi.product_id, oi.deal_id, oi.product_name AS name, oi.quantity,
-                  oi.unit_price, oi.fulfilment_status, COALESCE(p.image, d.image, '') AS image, COALESCE(u.store_name, '') AS store_name,
+                  oi.unit_price, oi.fulfilment_status, COALESCE(p.image, d.image, '') AS image, COALESCE(u.store_name, '') AS store_name, u.username AS trader_username, r.stars AS my_rating,
                   oi.escrow_status, (oi.delivery_code IS NOT NULL) AS has_code, (oi.code_scanned_at IS NOT NULL) AS scanned,
                   (SELECT status FROM disputes WHERE order_item_id = oi.id ORDER BY id DESC LIMIT 1) AS dispute_status
                FROM order_items oi
                LEFT JOIN products p ON p.id = oi.product_id
                LEFT JOIN flash_deals d ON d.id = oi.deal_id            -- NULL once a deal has been removed (the order line stays)
                LEFT JOIN users u ON u.id = oi.trader_id
+               LEFT JOIN trader_ratings r ON r.order_item_id = oi.id
                WHERE oi.order_id = ANY(%s) ORDER BY oi.id""", ([o['id'] for o in orders],)).fetchall()
     by_order = defaultdict(list)
     for item in items:

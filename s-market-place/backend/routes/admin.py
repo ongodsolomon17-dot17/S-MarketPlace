@@ -355,3 +355,53 @@ def reject_payout(payout_id):
     note = str((request.get_json(silent=True) or {}).get('note', '')).strip()[:500]
     return _finish_payout(payout_id, 'rejected', '', note, 'Payout request declined',
                           'Your request for {amount} was declined' + (f': {note}' if note else '.'))
+
+
+# ----------------------------------------------------------------------------- verified traders
+@bp.get('/api/admin/traders')
+@require_admin
+def admin_traders():
+    """Find traders by shop name, username, email or name, to give or remove the Verified badge."""
+    from helpers import like_term
+    term = like_term(request.args.get('q', '').strip())
+    with db() as con:
+        rows = con.execute(
+            """SELECT u.id, u.username, u.email, u.first_name, u.last_name, u.store_name, u.profile_image,
+                      u.is_verified, u.verified_at, u.created_at,
+                      (SELECT COUNT(*) FROM products p WHERE p.trader_id = u.id AND p.deleted_at IS NULL)::int AS products,
+                      (SELECT ROUND(AVG(stars)::numeric, 1) FROM trader_ratings r WHERE r.trader_id = u.id) AS rating,
+                      (SELECT COUNT(*) FROM trader_ratings r WHERE r.trader_id = u.id)::int AS rating_count
+               FROM users u
+               WHERE u.role = 'trader' AND (u.store_name ILIKE %s OR u.username ILIKE %s OR u.email ILIKE %s
+                                            OR u.first_name ILIKE %s OR u.last_name ILIKE %s)
+               ORDER BY u.is_verified DESC, u.store_name, u.id LIMIT 50""",
+            (term, term, term, term, term)).fetchall()
+    return jsonify(traders=[{**dict(r), 'rating': float(r['rating']) if r['rating'] is not None else None,
+                             'verified_at': iso(r['verified_at']), 'created_at': iso(r['created_at'])} for r in rows])
+
+
+@bp.post('/api/admin/traders/<int:trader_id>/verify')
+@require_admin
+def admin_verify_trader(trader_id):
+    """Give (verified: true) or remove (verified: false) a trader's Verified badge. The change is logged."""
+    verified = bool((request.get_json(silent=True) or {}).get('verified'))
+    with db() as con:
+        row = con.execute(
+            "UPDATE users SET is_verified=%s, verified_at = CASE WHEN %s THEN NOW() ELSE NULL END "
+            "WHERE id=%s AND role='trader' RETURNING id, store_name, username, is_verified",
+            (verified, verified, trader_id)).fetchone()
+        if not row:
+            return jsonify(error='Trader not found.'), 404
+        con.execute(
+            """INSERT INTO admin_audit_log(admin_user_id, action, target_type, target_id, details)
+               VALUES (%s, %s, 'trader', %s, jsonb_build_object('username', %s::text))""",
+            (g.user['id'], 'trader_verified' if verified else 'trader_unverified', trader_id, row['username']))
+        escrow_service.notify(
+            con, trader_id,
+            'Your shop is now verified' if verified else 'Verified badge removed',
+            'Shoppers now see the Verified badge on your shop.' if verified
+            else 'The Verified badge was removed from your shop. Contact support if you think this is a mistake.',
+            'trader-dashboard')
+    name = row['store_name'] or row['username']
+    return jsonify(message=f"{name} is now verified." if verified else f"{name} is no longer verified.",
+                   is_verified=row['is_verified'])

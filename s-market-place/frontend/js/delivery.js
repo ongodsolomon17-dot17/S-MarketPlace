@@ -26,7 +26,10 @@ function escrowHTML(order, item) {
     case "disputed":
       return '<div class="item-escrow"><p class="escrow-note warn">⚠ Problem reported. Your payment stays on hold while we review it.</p></div>';
     case "released":
-      return '<div class="item-escrow"><p class="escrow-note ok">✓ Delivery confirmed. The seller has been paid.</p></div>';
+      return `<div class="item-escrow"><p class="escrow-note ok">✓ Delivery confirmed. The seller has been paid.</p>
+        ${!item.trader_username ? "" : item.my_rating
+          ? `<p class="rated-line">You rated ${escapeHTML(item.store_name || "this trader")}: <span class="stars" aria-label="${item.my_rating} out of 5">${starsText(item.my_rating)}</span></p>`
+          : `<button class="outline-button small" type="button" data-open-rating="${item.id}">★ Rate this trader</button>`}</div>`;
     case "refunded":
       return '<div class="item-escrow"><p class="escrow-note">↩ This item was refunded.</p></div>';
     default:

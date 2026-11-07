@@ -11,7 +11,7 @@ Project map (backend/):
     maintenance.py      periodic housekeeping
     deal_service.py     deletes finished Fast Finger deals after 24 hours
     escrow_service.py   holds buyers' money until delivery; commission, release, refund, balances
-    routes/             the web endpoints: accounts, shop, orders, seller, deals, delivery (QR), wallet, admin
+    routes/             the web endpoints: accounts, shop, orders, seller, deals, delivery (QR), wallet, community (shop profiles, followers, ratings), admin
 """
 import os
 
@@ -24,7 +24,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 import config
 from database import db, ensure_schema
-from routes import accounts, admin, deals, delivery, orders, seller, shop, wallet
+from routes import accounts, admin, community, deals, delivery, orders, seller, shop, wallet
 import maintenance
 
 def create_app():
@@ -41,7 +41,7 @@ def create_app():
     cloudinary.config(cloud_name=os.environ.get('CLOUDINARY_CLOUD_NAME'), api_key=os.environ.get('CLOUDINARY_API_KEY'),
                       api_secret=os.environ.get('CLOUDINARY_API_SECRET'), secure=True)
 
-    for blueprint in (accounts.bp, shop.bp, orders.bp, seller.bp, deals.bp, delivery.bp, wallet.bp, admin.bp):
+    for blueprint in (accounts.bp, shop.bp, orders.bp, seller.bp, deals.bp, delivery.bp, wallet.bp, community.bp, admin.bp):
         app.register_blueprint(blueprint)
 
     register_hooks(app)
