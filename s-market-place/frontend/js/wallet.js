@@ -246,7 +246,13 @@ async function loadNotifications(target, limit = 5) {
     target.hidden = notifications.length === 0;
     const badge = target.querySelector(".notif-badge");
     if (badge) { badge.textContent = unread; badge.hidden = unread === 0; }
-    const list = notifications.slice(0, limit).map(note => `
+    const expandable = Boolean(target.closest && target.closest(".trader-management-page"));   // trader screens: tap a row to read it
+    const list = notifications.slice(0, limit).map(note => expandable ? `
+      <details class="notice ${note.is_read ? "" : "is-new"}">
+        <summary>${note.is_read ? "" : '<span class="unread-dot" aria-hidden="true"></span>'}<span class="notice-copy"><strong>${escapeHTML(note.title)}</strong></span></summary>
+        <p>${escapeHTML(note.body)}</p>
+        <small class="notice-date">${escapeHTML(formatDate(note.created_at))}</small>
+      </details>` : `
       <article class="notice ${note.is_read ? "" : "is-new"}">
         <strong>${escapeHTML(note.title)}</strong>
         <p>${escapeHTML(note.body)}</p>

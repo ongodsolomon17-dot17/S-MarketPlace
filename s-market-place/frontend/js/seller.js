@@ -132,7 +132,7 @@ async function loadTraderFinance() {
 
 async function loadTraderManagement() {
   if (!currentUser || currentUser.role !== "trader") { openAuth("trader"); return; }
-  await loadTraderSummary();
+  await Promise.all([loadTraderSummary(), loadNotifications(document.getElementById("management-notifications-panel"), 3)]);
 }
 
 /** The whole notifications list (More → Notifications). */

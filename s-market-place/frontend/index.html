@@ -146,14 +146,14 @@
             <span class="verified-badge" id="dashboard-verified" hidden>✔ Verified trader</span>
             <p class="trader-profile-handle" id="trader-profile-handle"></p>
           </div>
-          <button class="outline-button trader-settings-button" type="button" data-page-link="settings">
+          <button class="outline-button trader-settings-button" type="button" data-page-link="settings" aria-label="Settings" title="Settings">
             <img src="icons/settings.png" alt="" width="20" height="20"> Settings
           </button>
-        </div>
-        <div class="trader-community-row" aria-label="Community">
-          <button class="community-preview" type="button" data-community="following"><strong id="stat-following">0</strong><span>Following</span><small>Shops you follow</small></button>
-          <button class="community-preview" type="button" data-community="followers"><strong id="stat-followers">0</strong><span>Followers</span><small>People following you</small></button>
-          <button class="community-preview community-message-preview" type="button" data-open-chat><strong>✉</strong><span>Messages</span><small id="chat-status">Coming soon</small></button>
+          <div class="trader-community-row" aria-label="Community">
+            <button class="community-preview" type="button" data-community="following"><strong id="stat-following">0</strong><span>Following</span><small>Shops you follow</small></button>
+            <button class="community-preview" type="button" data-community="followers"><strong id="stat-followers">0</strong><span>Followers</span><small>People following you</small></button>
+            <button class="community-preview community-message-preview" type="button" data-open-chat><strong>✉</strong><span>Messages</span><small id="chat-status">Coming soon</small></button>
+          </div>
         </div>
         <p class="trader-intro-copy">Manage your shop, track earnings, respond to orders, and keep your products up to date.</p>
       </section>
@@ -170,15 +170,16 @@
         <button class="trader-shortcut" type="button" data-page-link="trader-management">
           <span class="shortcut-icon" aria-hidden="true">▦</span>
           <span class="shortcut-copy"><strong>More</strong><small>Notifications, products and delivery</small></span>
+        
+          <span class="action-badge" data-tile-count="unread" hidden aria-label="Unread updates"></span>
         </button>
       </nav>
 
       <section class="panel-list dashboard-products-panel" id="trader-products-panel" aria-labelledby="trader-products-title">
-        <div class="panel-title-row"><div><p class="eyebrow">YOUR SHOP</p><h2 id="trader-products-title">Products</h2></div><span class="panel-icon" aria-hidden="true">▦</span></div>
-        <p class="panel-supporting-copy">Tap a product to see its details, or search and sort your listings.</p>
         <div class="list-tools" data-list-scope="products-account">
+          <h2 id="trader-products-title">Products</h2>
           <label class="list-search"><span aria-hidden="true">⌕</span><input type="search" data-list-search placeholder="Search products or PRD-101" aria-label="Search products or PRD-101" autocomplete="off" maxlength="80"><button type="button" data-list-clear hidden aria-label="Clear search">×</button></label>
-          <div class="sort-wrap"><button type="button" class="outline-button sort-button" data-list-sort-toggle aria-haspopup="true" aria-expanded="false">⇅ <span data-sort-label>Newest first</span></button>
+          <div class="sort-wrap"><button type="button" class="outline-button sort-button" data-list-sort-toggle aria-haspopup="true" aria-expanded="false" aria-label="Sort" title="Sort">⇅ <span data-sort-label>Newest first</span></button>
             <div class="sort-menu" role="menu" hidden><button type="button" role="menuitem" data-list-sort-value="newest" class="is-active">Newest first</button><button type="button" role="menuitem" data-list-sort-value="oldest">Oldest first</button><button type="button" role="menuitem" data-list-sort-value="name">Name A–Z</button><button type="button" role="menuitem" data-list-sort-value="price-high">Price: high to low</button><button type="button" role="menuitem" data-list-sort-value="price-low">Price: low to high</button><button type="button" role="menuitem" data-list-sort-value="stock-low">Lowest stock first</button></div></div>
         </div>
         <p class="list-count muted" data-list-count aria-live="polite"></p>
@@ -231,14 +232,32 @@
 
     <section class="page-panel trader-management-page" id="page-trader-management" data-page="trader-management" hidden>
       <button class="management-back-button page-back-button" type="button" data-page-link="trader-dashboard" aria-label="Back to account centre">←</button>
-      <section class="page-intro"><p class="eyebrow">MORE · TRADE MANAGEMENT</p><h1>Trade management</h1><p>Review shop updates, manage your listings, and keep orders moving through delivery.</p></section>
-      <nav class="management-feature-nav" aria-label="Trade management features">
-        <button type="button" class="management-feature-button" data-page-link="trader-notifications"><span class="management-feature-icon" aria-hidden="true">♢</span><strong>Notifications <span class="tile-count" data-tile-count="unread" hidden></span></strong><small>Order, rating and account updates</small></button>
-        <button type="button" class="management-feature-button" data-page-link="trader-products"><span class="management-feature-icon" aria-hidden="true">▣</span><strong>Listed products <span class="tile-count" data-tile-count="products" hidden></span></strong><small>Search, sort and edit listings</small></button>
-        <button type="button" class="management-feature-button" data-page-link="trader-orders"><span class="management-feature-icon" aria-hidden="true">↗</span><strong>Orders to fulfil <span class="tile-count" data-tile-count="to_fulfil" hidden></span></strong><small>Prepare, ship and deliver</small></button>
-        <button type="button" class="management-feature-button" data-page-link="trader-fulfilled"><span class="management-feature-icon" aria-hidden="true">✓</span><strong>Fulfilled orders <span class="tile-count" data-tile-count="fulfilled" hidden></span></strong><small>Delivered and paid orders</small></button>
-        <button type="button" class="management-feature-button management-shop-link" data-open-my-store><span class="management-feature-icon" aria-hidden="true">◉</span><strong>See my shop as buyers see it</strong><small>Your public shop page, rating and badge</small></button>
-      </nav>
+      <section class="page-intro"><p class="eyebrow">SHOP TOOLS</p><h1>Trade management</h1><p>Review shop updates, manage your listings, and keep orders moving through delivery.</p></section>
+      <section class="panel-list tl-surface" id="management-notifications-panel" hidden aria-labelledby="management-notifications-title">
+        <h3 class="tl-surface-head" id="management-notifications-title">Latest notifications <span class="notif-badge" hidden></span></h3>
+        <div data-notification-list></div>
+        <div class="tl-link-row"><button class="text-button" type="button" data-page-link="trader-notifications">View all notifications</button></div>
+      </section>
+      <h3 class="more-group-title">Products</h3>
+      <button type="button" class="more-category products-link" data-page-link="trader-products">
+        <span class="category-icon" aria-hidden="true">▣</span>
+        <span class="more-category-copy"><strong>Your listed products</strong><small>Edit, pause or delete</small></span>
+        <span class="category-count" data-tile-count="products" hidden></span>
+      </button>
+      <h3 class="more-group-title">Delivery management</h3>
+      <div class="two-up">
+        <button type="button" class="more-category delivery-link" data-page-link="trader-orders">
+          <span class="category-icon" aria-hidden="true">↗</span>
+          <span class="more-category-copy"><strong>Orders to fulfil</strong><small>Send QR and ship</small></span>
+          <span class="category-count" data-tile-count="to_fulfil" hidden></span>
+        </button>
+        <button type="button" class="more-category delivery-link" data-page-link="trader-fulfilled">
+          <span class="category-icon" aria-hidden="true">✓</span>
+          <span class="more-category-copy"><strong>Fulfilled orders</strong><small>Delivered and paid</small></span>
+          <span class="category-count" data-tile-count="fulfilled" hidden></span>
+        </button>
+      </div>
+      <button type="button" class="more-shop-link" data-open-my-store><span aria-hidden="true">◉</span>See my shop as buyers see it</button>
     </section>
 
     <section class="page-panel trader-management-page" id="page-trader-notifications" data-page="trader-notifications" hidden>
@@ -258,7 +277,7 @@
         <div class="panel-title-row"><div><p class="eyebrow">INVENTORY</p><h2 id="management-products-title">Your listed products</h2></div><span class="panel-icon" aria-hidden="true">▣</span></div>
         <div class="list-tools" data-list-scope="products-listed">
           <label class="list-search"><span aria-hidden="true">⌕</span><input type="search" data-list-search placeholder="Search products or PRD-101" aria-label="Search products or PRD-101" autocomplete="off" maxlength="80"><button type="button" data-list-clear hidden aria-label="Clear search">×</button></label>
-          <div class="sort-wrap"><button type="button" class="outline-button sort-button" data-list-sort-toggle aria-haspopup="true" aria-expanded="false">⇅ <span data-sort-label>Newest first</span></button>
+          <div class="sort-wrap"><button type="button" class="outline-button sort-button" data-list-sort-toggle aria-haspopup="true" aria-expanded="false" aria-label="Sort" title="Sort">⇅ <span data-sort-label>Newest first</span></button>
             <div class="sort-menu" role="menu" hidden><button type="button" role="menuitem" data-list-sort-value="newest" class="is-active">Newest first</button><button type="button" role="menuitem" data-list-sort-value="oldest">Oldest first</button><button type="button" role="menuitem" data-list-sort-value="name">Name A–Z</button><button type="button" role="menuitem" data-list-sort-value="price-high">Price: high to low</button><button type="button" role="menuitem" data-list-sort-value="price-low">Price: low to high</button><button type="button" role="menuitem" data-list-sort-value="stock-low">Lowest stock first</button></div></div>
         </div>
         <p class="list-count muted" data-list-count aria-live="polite"></p>
@@ -278,7 +297,7 @@
         <div class="panel-title-row"><div><p class="eyebrow">WAITING FOR YOU</p><h2 id="trader-orders-title">Orders</h2></div><span class="panel-icon" aria-hidden="true">↗</span></div>
         <div class="list-tools" data-list-scope="orders">
           <label class="list-search"><span aria-hidden="true">⌕</span><input type="search" data-list-search placeholder="Search product, PRD-101, order #" aria-label="Search product, PRD-101, order #" autocomplete="off" maxlength="80"><button type="button" data-list-clear hidden aria-label="Clear search">×</button></label>
-          <div class="sort-wrap"><button type="button" class="outline-button sort-button" data-list-sort-toggle aria-haspopup="true" aria-expanded="false">⇅ <span data-sort-label>Newest first</span></button>
+          <div class="sort-wrap"><button type="button" class="outline-button sort-button" data-list-sort-toggle aria-haspopup="true" aria-expanded="false" aria-label="Sort" title="Sort">⇅ <span data-sort-label>Newest first</span></button>
             <div class="sort-menu" role="menu" hidden><button type="button" role="menuitem" data-list-sort-value="newest" class="is-active">Newest first</button><button type="button" role="menuitem" data-list-sort-value="oldest">Oldest first</button><button type="button" role="menuitem" data-list-sort-value="product">Product A–Z</button><button type="button" role="menuitem" data-list-sort-value="amount-high">Amount: high to low</button><button type="button" role="menuitem" data-list-sort-value="amount-low">Amount: low to high</button></div></div>
         </div>
         <p class="list-count muted" data-list-count aria-live="polite"></p>
@@ -293,7 +312,7 @@
         <div class="panel-title-row"><div><p class="eyebrow">DONE</p><h2 id="trader-fulfilled-title">Fulfilled</h2></div><span class="panel-icon" aria-hidden="true">✓</span></div>
         <div class="list-tools" data-list-scope="fulfilled">
           <label class="list-search"><span aria-hidden="true">⌕</span><input type="search" data-list-search placeholder="Search product, PRD-101, order #" aria-label="Search product, PRD-101, order #" autocomplete="off" maxlength="80"><button type="button" data-list-clear hidden aria-label="Clear search">×</button></label>
-          <div class="sort-wrap"><button type="button" class="outline-button sort-button" data-list-sort-toggle aria-haspopup="true" aria-expanded="false">⇅ <span data-sort-label>Newest first</span></button>
+          <div class="sort-wrap"><button type="button" class="outline-button sort-button" data-list-sort-toggle aria-haspopup="true" aria-expanded="false" aria-label="Sort" title="Sort">⇅ <span data-sort-label>Newest first</span></button>
             <div class="sort-menu" role="menu" hidden><button type="button" role="menuitem" data-list-sort-value="newest" class="is-active">Newest first</button><button type="button" role="menuitem" data-list-sort-value="oldest">Oldest first</button><button type="button" role="menuitem" data-list-sort-value="product">Product A–Z</button><button type="button" role="menuitem" data-list-sort-value="amount-high">Amount: high to low</button><button type="button" role="menuitem" data-list-sort-value="amount-low">Amount: low to high</button></div></div>
         </div>
         <p class="list-count muted" data-list-count aria-live="polite"></p>

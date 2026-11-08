@@ -114,12 +114,7 @@ h1,h2{font-family:'Playfair Display',Georgia,serif;font-weight:600;line-height:1
 body { padding-bottom: 92px; }
 .site-header { gap: 16px; }
 .header-actions { display: flex; align-items: center; gap: 12px; }
-
-
-.account-header-button{ justify-content: center; align-items: center;  border: 1px solid var(--market-gold); color: var(--market-cream); background: rgba(32,1,47,.75); border-radius: 50%; padding: 0px; cursor: pointer}
-
-.outline-button { border: 1px solid var(--market-gold); color: var(--market-cream); background: rgba(32,1,47,.75); border-radius: 999px; padding: 11px 17px; cursor: pointer; font-weight: 700; }
-
+.account-header-button, .outline-button { border: 1px solid var(--market-gold); color: var(--market-cream); background: rgba(32,1,47,.75); border-radius: 999px; padding: 11px 17px; cursor: pointer; font-weight: 700; }
 .hero { max-width: 1100px; }
 .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; margin-top: 18px; }
 .marketplace-section { max-width: 1240px; margin: 0 auto; padding: 28px 20px; }
@@ -692,7 +687,7 @@ html[data-theme="light"] .owned-products-empty, html[data-theme="light"] .owned-
   .owned-product-card-body .outline-button { font-size: .76rem; }
 }
 
-/* the Trader subscription access stays in the header until the reminder window. */
+/* Trader subscription access stays in the header until the reminder window. */
 .subscription-crown-button {
   display: grid;
   flex: 0 0 46px;
@@ -993,3 +988,351 @@ html[data-theme="light"] .finance-balance-card { background: radial-gradient(ell
 html[data-theme="light"] .store-avatar { border-color: #fff; }
 html[data-theme="light"] .list-search input, html[data-theme="light"] .sort-menu button { color: #192238; }
 html[data-theme="light"] .verified-badge { color: #0d3b2e; }
+
+
+/* ============================================================================
+   TRADER LAYOUT  (flat navy layout from trader-interfaces-preview)
+   ----------------------------------------------------------------------------
+   Turned on by navigation.js, which adds  body.trader-layout  while one of these
+   screens is open: account centre, finance, More, notifications, listed products,
+   orders to fulfil, fulfilled orders and the public shop page.
+   Every rule here starts with  body.trader-layout  so no other screen is touched.
+   All colours come from the --tl-* values just below (dark by default, light when
+   the shopper chose the light theme in Settings).
+   ============================================================================ */
+body.trader-layout {
+  --tl-bg: #0b1126; --tl-surface: #141c3a; --tl-ink: #eaf0ff; --tl-muted: #9aa6cc; --tl-line: #243058; --tl-soft: #1b2650;
+  --tl-blue: #2434b8; --tl-blue-bright: #1773ee; --tl-gold: #e8b84a; --tl-orange: #f59a0b; --tl-red: #e5314b; --tl-green: #12a36b;
+  --market-cream: var(--tl-ink); --ui-text-soft: var(--tl-muted); --ui-border: var(--tl-line);
+  --ui-surface: var(--tl-surface); --ui-surface-raised: var(--tl-soft);
+  color: var(--tl-ink);
+  background: var(--tl-bg) !important; background-image: none !important; animation: none !important;
+}
+html[data-theme="light"] body.trader-layout {
+  --tl-bg: #eef2fa; --tl-surface: #ffffff; --tl-ink: #101a3d; --tl-muted: #5b6688; --tl-line: #dce3f2; --tl-soft: #e7edfb;
+}
+body.trader-layout .background-img { display: none; }
+
+/* ---- page frame: header, content column, bottom menu ---- */
+body.trader-layout .site-header { padding: 10px 15px; background: #0e1536; backdrop-filter: none; box-shadow: none; border-bottom: 1px solid var(--tl-line); }
+body.trader-layout main { width: 100%; max-width: 640px; padding: 15px 15px 110px; }
+body.trader-layout .bottom-nav { left: 0; right: 0; bottom: 0; width: auto; transform: none; gap: 0; padding: 6px 6px calc(9px + env(safe-area-inset-bottom)); border: 0; border-top: 1px solid var(--tl-line); border-radius: 0; background: var(--tl-surface); box-shadow: none; backdrop-filter: none; }
+body.trader-layout .bottom-nav .nav-item { color: var(--tl-muted); border-radius: 11px; }
+body.trader-layout .bottom-nav .nav-item.is-current { color: var(--tl-blue-bright); background: var(--tl-soft); }
+
+/* ---- shared building blocks ---- */
+body.trader-layout .page-intro { max-width: none; padding: 0; }
+body.trader-layout .page-intro h1 { max-width: none; font-size: 21px; line-height: 1.2; }
+body.trader-layout .page-intro > p:not(.eyebrow) { display: none; }
+body.trader-layout .eyebrow { margin: 0 0 4px; color: var(--tl-blue-bright); font-size: 10px; letter-spacing: .12em; }
+body.trader-layout .muted, body.trader-layout .panel-supporting-copy { color: var(--tl-muted); }
+body.trader-layout .panel-list, body.trader-layout .tl-surface { min-width: 0; max-width: none; margin: 16px 0 0; padding: 14px; border: 1px solid var(--tl-line); border-radius: 18px; color: var(--tl-ink); background: var(--tl-surface); box-shadow: none; backdrop-filter: none; }
+body.trader-layout .panel-list h2 { margin: 0; }
+body.trader-layout .primary-button { border: 0; border-radius: 12px; padding: 12px 18px; color: #fff; background: var(--tl-blue); box-shadow: none; font-size: 13px; }
+body.trader-layout .outline-button { border: 1px solid var(--tl-blue-bright); border-radius: 11px; color: var(--tl-blue-bright); background: transparent; font-size: 12px; font-weight: 650; }
+body.trader-layout .text-button { padding: 8px 0 0; color: var(--tl-blue-bright); font-size: 11px; font-weight: 700; }
+body.trader-layout .notif-badge, body.trader-layout .count-badge { display: inline-grid; min-width: 21px; height: 21px; place-items: center; padding: 0 6px; border-radius: 11px; color: #fff; background: var(--tl-red); font: 700 10px/1 "DM Sans", system-ui, sans-serif; vertical-align: middle; }
+body.trader-layout .notif-badge[hidden] { display: none; }
+
+/* back arrow + title on one row (every screen except the account centre) */
+body.trader-layout .page-panel.is-active.trader-finance-page,
+body.trader-layout .page-panel.is-active.trader-management-page { display: grid; grid-template-columns: 38px minmax(0, 1fr); column-gap: 10px; align-content: start; padding-bottom: 0; }
+body.trader-layout .page-panel.is-active.trader-finance-page > *,
+body.trader-layout .page-panel.is-active.trader-management-page > * { grid-column: 1 / -1; min-width: 0; }
+body.trader-layout .page-panel.is-active.trader-finance-page > .page-back-button,
+body.trader-layout .page-panel.is-active.trader-management-page > .page-back-button { grid-column: 1; grid-row: 1; }
+body.trader-layout .page-panel.is-active.trader-finance-page > .page-intro,
+body.trader-layout .page-panel.is-active.trader-management-page > .page-intro { grid-column: 2; grid-row: 1; }
+body.trader-layout .page-back-button, body.trader-layout .management-back-button { display: grid; flex: 0 0 38px; place-items: center; width: 38px; height: 38px; margin: 0 0 15px; padding: 0; border: 0; border-radius: 50%; color: var(--tl-blue-bright); background: var(--tl-soft); font-size: 20px; line-height: 1; }
+body.trader-layout .page-intro { margin-bottom: 15px; }
+
+/* ---- search + sort toolbar ---- */
+body.trader-layout .list-tools { position: relative; display: flex; align-items: center; gap: 8px; margin: 0 0 10px; }
+body.trader-layout .list-tools > h2 { flex: 0 0 auto; margin: 0; font-size: 18px; }
+body.trader-layout .list-search { height: 40px; padding: 0 9px; gap: 6px; border: 1px solid var(--tl-line); border-radius: 11px; color: var(--tl-muted); background: var(--tl-soft); }
+body.trader-layout .list-search:focus-within { border-color: var(--tl-blue-bright); }
+body.trader-layout .list-search > span { font-size: 15px; color: var(--tl-muted); }
+body.trader-layout .list-search input { padding: 0; color: var(--tl-ink); font-size: 11px; }
+body.trader-layout .list-search input::placeholder { color: var(--tl-muted); opacity: 1; }
+body.trader-layout .list-search [data-list-clear] { width: 22px; height: 22px; font-size: 16px; color: var(--tl-muted); }
+body.trader-layout .sort-wrap { position: static; }
+body.trader-layout .sort-button { display: grid; place-items: center; width: 40px; height: 40px; padding: 0; border: 1px solid var(--tl-line); border-radius: 11px; color: var(--tl-blue-bright); background: var(--tl-soft); font-size: 20px; line-height: 1; }
+body.trader-layout .sort-button [data-sort-label] { display: none; }
+body.trader-layout .sort-button[aria-expanded="true"] { border-color: var(--tl-blue-bright); }
+body.trader-layout .sort-menu { top: calc(100% + 7px); right: 0; width: min(235px, 78vw); min-width: 0; padding: 8px; border: 1px solid var(--tl-line); border-radius: 14px; background: var(--tl-surface); box-shadow: 0 14px 35px rgba(8,16,45,.28); }
+body.trader-layout .sort-menu button { min-height: 38px; padding: 6px 8px; border-radius: 9px; color: var(--tl-ink); font-size: 11px; }
+body.trader-layout .sort-menu button:hover, body.trader-layout .sort-menu button.is-active { color: var(--tl-blue-bright); background: var(--tl-soft); font-weight: 650; }
+body.trader-layout .list-count { min-height: 14px; margin: -3px 0 7px; color: var(--tl-muted); font-size: 10px; }
+body.trader-layout .list-empty { padding: 18px 12px; border: 1px dashed var(--tl-line); border-radius: 13px; text-align: center; font-size: 11px; }
+
+/* ============ ACCOUNT CENTRE ============ */
+body.trader-layout .trader-center { padding-bottom: 0; }
+body.trader-layout .trader-center-intro { padding: 0; }
+body.trader-layout .trader-center-intro > .eyebrow, body.trader-layout .trader-intro-copy { display: none; }
+body.trader-layout .trader-profile-card { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 11px; padding: 14px; border: 1px solid var(--tl-line); border-radius: 18px; background: var(--tl-surface); box-shadow: none; backdrop-filter: none; }
+body.trader-layout .trader-profile-avatar { flex: 0 0 56px; width: 56px; height: 56px; border: 3px solid var(--tl-surface); background: linear-gradient(135deg, #19c6b0, #1773ee); box-shadow: none; font-size: 24px; }
+body.trader-layout .trader-profile-copy { display: flex; flex: 1; flex-direction: column; align-items: flex-start; min-width: 0; }
+body.trader-layout .trader-profile-copy h1 { order: 1; max-width: 100%; overflow: hidden; font-size: 18px; text-overflow: ellipsis; white-space: nowrap; }
+body.trader-layout .trader-profile-name { order: 2; margin: 2px 0 0; color: var(--tl-muted); font-size: 11px; font-weight: 400; letter-spacing: 0; text-transform: none; }
+body.trader-layout .trader-profile-handle { order: 3; margin: 0; color: var(--tl-muted); font-size: 11px; }
+body.trader-layout .trader-profile-copy .verified-badge { order: 4; margin-top: 5px; }
+body.trader-layout .trader-settings-button { display: grid; flex: 0 0 40px; place-items: center; width: 40px; height: 40px; padding: 0; border: 1px solid var(--tl-line); border-radius: 13px; background: var(--tl-soft); font-size: 0; }
+body.trader-layout .trader-settings-button img { width: 20px; height: 20px; }
+body.trader-layout .trader-community-row { display: grid; flex: 1 1 100%; grid-template-columns: 1fr 1fr 1.15fr; gap: 8px; margin: 2px 0 0; }
+body.trader-layout .community-preview { display: block; padding: 8px 5px; border: 0; border-radius: 12px; color: var(--tl-muted); background: var(--tl-soft); box-shadow: none; text-align: center; font-size: 11px; }
+body.trader-layout .community-preview strong { display: block; color: var(--tl-ink); font-size: 16px; }
+body.trader-layout .community-preview small { display: none; }
+body.trader-layout .community-message-preview { color: #fff; background: var(--tl-orange); }
+body.trader-layout .community-message-preview strong { color: #fff; }
+body.trader-layout .community-message-preview small { display: block; margin-top: 1px; color: rgba(255,255,255,.88); font-size: 9px; }
+
+body.trader-layout .trader-shortcuts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; margin: 13px 0 19px; }
+body.trader-layout .trader-shortcut { position: relative; display: grid; justify-items: center; align-content: start; gap: 6px; min-height: 84px; padding: 10px 5px 8px; border: 1px solid var(--tl-line); border-radius: 15px; color: var(--tl-ink); background: var(--tl-surface); box-shadow: none; text-align: center; }
+body.trader-layout .trader-shortcut:hover, body.trader-layout .trader-shortcut-primary { border-color: var(--tl-line); background: var(--tl-surface); }
+body.trader-layout .trader-shortcut:hover { border-color: var(--tl-blue-bright); }
+body.trader-layout .shortcut-icon { flex: none; width: 40px; height: 40px; border-radius: 13px; color: #fff; background: linear-gradient(135deg, var(--tl-blue), var(--tl-blue-bright)); font-size: 21px; }
+body.trader-layout .shortcut-copy { gap: 0; justify-items: center; }
+body.trader-layout .shortcut-copy strong { font-size: 12px; font-weight: 650; }
+body.trader-layout .shortcut-copy small { display: none; }
+body.trader-layout .action-badge { position: absolute; top: 5px; right: 7px; display: grid; place-items: center; min-width: 18px; height: 18px; padding: 0 4px; border-radius: 9px; color: #fff; background: var(--tl-red); font-size: 10px; font-weight: 700; }
+body.trader-layout .action-badge[hidden] { display: none; }
+body.trader-layout .trader-shortcut .pro-badge { position: absolute; top: 5px; left: 5px; }
+
+body.trader-layout .dashboard-products-panel { margin: 0; padding: 0; border: 0; background: transparent; }
+body.trader-layout #trader-own-products { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; }
+body.trader-layout .owned-product-card { position: relative; border: 1px solid var(--tl-line); border-radius: 13px; color: var(--tl-ink); background: var(--tl-surface); box-shadow: none; transform: none; }
+body.trader-layout .owned-product-card:hover { border-color: var(--tl-blue-bright); transform: none; box-shadow: none; }
+body.trader-layout .owned-product-media { aspect-ratio: 1.1 / 1; background: linear-gradient(135deg, #2434b8, #1773ee); }
+body.trader-layout #trader-own-products > :nth-child(3n+2) .owned-product-media { background: linear-gradient(135deg, #7c3aed, #c026d3); }
+body.trader-layout #trader-own-products > :nth-child(3n) .owned-product-media { background: linear-gradient(135deg, #0e9f8e, #12a36b); }
+body.trader-layout .owned-product-media img { object-fit: cover; }
+body.trader-layout .owned-product-placeholder { color: rgba(255,255,255,.94); font-size: 2rem; }
+body.trader-layout .owned-product-stock { top: auto; right: auto; bottom: 5px; left: 5px; padding: 2px 6px; border: 0; color: #fff; background: rgba(8,14,40,.6); font-size: 9px; }
+body.trader-layout .owned-product-card .paused-badge { top: 5px; left: 5px; margin: 0; padding: 2px 6px; font-size: 9px; }
+body.trader-layout .owned-product-card-body { gap: 2px; padding: 7px; }
+body.trader-layout .owned-product-card-body > small:first-child { display: none; }
+body.trader-layout .owned-product-card-body > strong { display: block; min-height: 0; overflow: hidden; font-size: 11px; line-height: 1.3; text-overflow: ellipsis; white-space: nowrap; }
+body.trader-layout .owned-product-price { color: var(--tl-muted); font-size: 11px; font-weight: 600; }
+body.trader-layout .owned-product-card-body > small:last-of-type { display: none; }
+body.trader-layout .owned-product-card-body .outline-button { position: absolute; top: 6px; right: 6px; width: auto; min-height: 30px; margin: 0; padding: 5px 8px; border: 1px solid rgba(255,255,255,.65); border-radius: 9px; color: #14204c; background: rgba(255,255,255,.96); box-shadow: 0 2px 8px rgba(5,12,34,.2); font-size: 0; font-weight: 700; }
+body.trader-layout .owned-product-card-body .outline-button::after { content: "✎ Edit"; font-size: 10px; }
+body.trader-layout .owned-products-empty, body.trader-layout .owned-products-error { border-color: var(--tl-line); background: transparent; }
+
+/* ============ FINANCE ============ */
+body.trader-layout .finance-panel { display: flex; flex-direction: column; gap: 16px; margin: 0; padding: 0; border: 0; background: transparent; }
+body.trader-layout .finance-balance-card { order: 1; padding: 18px; border: 0; border-radius: 20px; color: #fff; background: linear-gradient(145deg, #0e1536, var(--tl-blue) 70%, #0e7fa8); box-shadow: none; }
+body.trader-layout .finance-balance-card::after { display: none; }
+body.trader-layout .finance-balance-heading .eyebrow { display: none; }
+body.trader-layout .finance-balance-heading h2 { color: rgba(255,255,255,.78); font: 400 12px/1.2 "DM Sans", system-ui, sans-serif; }
+body.trader-layout .finance-icon-button { width: 36px; height: 36px; border-radius: 11px; border-color: rgba(255,255,255,.22); background: rgba(255,255,255,.13); }
+body.trader-layout .finance-primary-amount { margin: 3px 0 4px; font-size: 30px; letter-spacing: 0; }
+body.trader-layout .finance-balance-caption { margin: 0 0 14px; color: rgba(255,255,255,.7); font-size: 11px; }
+body.trader-layout .finance-category-tabs { gap: 3px; padding: 4px; border: 0; border-radius: 13px; background: rgba(255,255,255,.13); }
+body.trader-layout .finance-category-button { min-height: 38px; padding: 5px 3px; border: 0; border-radius: 10px; color: #fff; font-size: 10px; font-weight: 650; }
+body.trader-layout .finance-category-button.is-selected, body.trader-layout .finance-category-button[aria-pressed="true"] { color: var(--tl-blue); background: #fff; box-shadow: none; }
+body.trader-layout .finance-selected-balance { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; margin-top: 13px; padding: 0; border: 0; background: none; }
+body.trader-layout .finance-selected-balance > span { display: none; }
+body.trader-layout .finance-selected-balance > strong { grid-column: auto; grid-row: auto; font-size: 23px; }
+body.trader-layout .finance-selected-balance > small { max-width: 220px; color: rgba(255,255,255,.78); font-size: 10px; }
+body.trader-layout .finance-panel .earn-note { order: 2; padding: 0 2px; color: var(--tl-muted); font-size: 11px; }
+body.trader-layout .finance-notifications-card { order: 3; }
+body.trader-layout .finance-analytics-card { order: 4; }
+body.trader-layout .finance-actions { order: 5; display: flex; gap: 8px; margin: 0; }
+body.trader-layout .finance-actions .primary-button { flex: 1 1 160px; min-height: 43px; }
+body.trader-layout .finance-actions .outline-button { min-height: 43px; padding: 0 14px; }
+body.trader-layout .finance-payouts-card { order: 6; }
+body.trader-layout .finance-analytics-card, body.trader-layout .finance-notifications-card, body.trader-layout .finance-payouts-card { padding: 14px; border: 1px solid var(--tl-line); border-radius: 18px; background: var(--tl-surface); }
+body.trader-layout .finance-section-heading .eyebrow, body.trader-layout .finance-section-heading p:last-child, body.trader-layout .finance-chart-mark { display: none; }
+body.trader-layout .finance-section-heading h2 { font-size: 17px; }
+body.trader-layout .finance-notifications-card .finance-section-heading { margin-bottom: 9px; }
+body.trader-layout .finance-notice { border-top: 1px solid var(--tl-line); }
+body.trader-layout .finance-notice:last-child { border-bottom: 1px solid var(--tl-line); }
+body.trader-layout .finance-notice summary { min-height: 0; padding: 10px 0; gap: 9px; }
+body.trader-layout .finance-notice summary::before { content: ""; flex: 0 0 8px; width: 8px; height: 8px; border-radius: 50%; background: transparent; }
+body.trader-layout .finance-notice.is-unread summary::before { background: var(--tl-red); }
+body.trader-layout .finance-notice summary::after { flex-basis: 20px; width: 20px; height: 20px; border: 0; font-size: 16px; }
+body.trader-layout .finance-notice-copy strong { color: var(--tl-ink); font-size: 12px; }
+body.trader-layout .finance-notice-copy small { color: var(--tl-muted); font-size: 10px; }
+body.trader-layout .finance-notice-new { display: none; }
+body.trader-layout .finance-notice > p { margin: 0 0 10px 17px; padding: 0; color: var(--tl-muted); font-size: 11px; }
+body.trader-layout .finance-weekly-summary { justify-content: space-between; margin: 0 0 7px; }
+body.trader-layout .finance-weekly-summary strong { color: var(--tl-ink); font-size: 18px; }
+body.trader-layout .finance-weekly-summary span { color: var(--tl-muted); font-size: 11px; }
+body.trader-layout .finance-chart { min-height: 0; }
+body.trader-layout #finance-bar-gradient stop:first-child { stop-color: #438df3; }
+body.trader-layout #finance-bar-gradient stop:last-child { stop-color: #2434b8; }
+body.trader-layout .finance-chart-gridline line, body.trader-layout .finance-chart-baseline { stroke: var(--tl-line); }
+body.trader-layout .finance-chart-gridline text, body.trader-layout .finance-chart-bar text { fill: var(--tl-muted); }
+body.trader-layout .payout-row, body.trader-layout .finance-payouts-card .payout-row { color: var(--tl-ink); border-color: var(--tl-line); font-size: 12px; }
+body.trader-layout .mini-title { font-size: 14px; }
+
+/* ============ MORE (TRADE MANAGEMENT) ============ */
+body.trader-layout .tl-surface-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 0 0 9px; font: 600 17px "Playfair Display", Georgia, serif; }
+body.trader-layout .tl-link-row { display: flex; justify-content: flex-end; }
+body.trader-layout .more-group-title { margin: 15px 0 9px; font: 600 16px "Playfair Display", Georgia, serif; }
+body.trader-layout .more-category { display: grid; align-items: center; gap: 12px; width: 100%; min-width: 0; padding: 13px; border: 1px solid var(--tl-line); border-radius: 17px; color: var(--tl-ink); background: var(--tl-surface); text-align: left; }
+body.trader-layout .more-category:hover { border-color: var(--tl-blue-bright); }
+body.trader-layout .more-category.products-link { grid-template-columns: 52px minmax(0, 1fr) auto; }
+body.trader-layout .more-category.delivery-link { grid-template-columns: 1fr; grid-template-rows: auto auto 1fr; align-content: start; min-height: 150px; }
+body.trader-layout .category-icon { display: grid; place-items: center; width: 50px; height: 50px; border-radius: 15px; color: var(--tl-blue-bright); background: var(--tl-soft); font-size: 24px; }
+body.trader-layout .more-category-copy { display: grid; min-width: 0; gap: 3px; }
+body.trader-layout .more-category-copy strong { font: 600 15px "Playfair Display", Georgia, serif; }
+body.trader-layout .more-category-copy small { color: var(--tl-muted); font-size: 10px; }
+body.trader-layout .category-count { color: var(--tl-blue-bright); font: 700 22px "Playfair Display", Georgia, serif; }
+body.trader-layout .category-count[hidden] { display: none; }
+body.trader-layout .more-category.delivery-link .category-count { align-self: end; }
+body.trader-layout .two-up { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+body.trader-layout .more-shop-link { display: flex; align-items: center; justify-content: center; gap: 9px; width: 100%; min-height: 48px; margin-top: 17px; padding: 10px 12px; border: 1px solid var(--tl-blue); border-radius: 13px; color: #fff; background: linear-gradient(110deg, var(--tl-blue), var(--tl-blue-bright)); font-size: 12px; font-weight: 700; }
+
+/* notifications (rows that open) */
+body.trader-layout details.notice { margin: 0; padding: 10px 0; border: 0; border-top: 1px solid var(--tl-line); border-radius: 0; background: none; }
+body.trader-layout details.notice:last-of-type { border-bottom: 1px solid var(--tl-line); }
+body.trader-layout details.notice summary { display: flex; align-items: center; gap: 9px; cursor: pointer; list-style: none; }
+body.trader-layout details.notice summary::-webkit-details-marker { display: none; }
+body.trader-layout details.notice summary::after { content: "⌄"; margin-left: auto; color: var(--tl-muted); }
+body.trader-layout details.notice[open] summary::after { content: "⌃"; }
+body.trader-layout .unread-dot { flex: 0 0 8px; width: 8px; height: 8px; border-radius: 50%; background: var(--tl-red); }
+body.trader-layout .notice-copy { display: grid; flex: 1; min-width: 0; gap: 2px; }
+body.trader-layout .notice-copy strong { overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+body.trader-layout .notice-copy small { color: var(--tl-muted); font-size: 10px; }
+body.trader-layout details.notice > p { margin: 8px 0 0 17px; color: var(--tl-muted); font-size: 11px; }
+body.trader-layout #page-trader-notifications .panel-title-row { display: none; }
+body.trader-layout #notifications-panel { margin-top: 0; }
+
+/* ============ LISTED PRODUCTS (rows) ============ */
+body.trader-layout #trader-management-products { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; }
+body.trader-layout .listed-product { display: grid; grid-template-columns: 54px minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 8px 0; border: 0; border-bottom: 1px solid var(--tl-line); border-radius: 0; background: none; }
+body.trader-layout .listed-product:last-child { border-bottom: 0; }
+body.trader-layout .listed-thumb { flex: none; width: 54px; height: 54px; border-radius: 11px; color: rgba(255,255,255,.94); background: linear-gradient(135deg, #2434b8, #1773ee); font-size: 22px; }
+body.trader-layout #trader-management-products > :nth-child(3n+2) .listed-thumb { background: linear-gradient(135deg, #7c3aed, #c026d3); }
+body.trader-layout #trader-management-products > :nth-child(3n) .listed-thumb { background: linear-gradient(135deg, #0e9f8e, #12a36b); }
+body.trader-layout .listed-info strong { font-size: 12px; }
+body.trader-layout .listed-info small { color: var(--tl-muted); font-size: 10px; }
+body.trader-layout .listed-product .outline-button { min-height: 36px; padding: 6px 10px; border-color: var(--tl-line); color: var(--tl-blue-bright); background: var(--tl-soft); font-size: 11px; }
+body.trader-layout #deleted-panel .panel-title-row .panel-icon { display: none; }
+body.trader-layout #deleted-panel h2 { font-size: 17px; }
+body.trader-layout #deleted-panel .panel-supporting-copy { margin: 6px 0 10px; font-size: 11px; line-height: 1.5; }
+body.trader-layout #deleted-panel .owned-product, body.trader-layout #deleted-panel .listed-product { font-size: 12px; }
+
+/* ============ ORDERS ============ */
+body.trader-layout #trader-orders-panel .panel-title-row, body.trader-layout #trader-fulfilled-panel .panel-title-row, body.trader-layout #trader-management-products-panel .panel-title-row { display: none; }
+body.trader-layout #trader-management-products-panel .list-tools { margin-top: 0; }
+body.trader-layout #trader-orders-panel, body.trader-layout #trader-fulfilled-panel { margin: 0; padding: 0; border: 0; background: transparent; }
+body.trader-layout .order-line, body.trader-layout .order-line.compact { display: flex; flex-direction: column; align-items: stretch; gap: 8px; margin: 10px 0; padding: 13px; border: 1px solid var(--tl-line); border-radius: 15px; background: var(--tl-surface); }
+body.trader-layout .order-line-main { flex: 0 1 auto; }
+body.trader-layout .order-line-main strong { font-size: 13px; }
+body.trader-layout .order-line small { margin-top: 3px; color: var(--tl-muted); font-size: 11px; }
+body.trader-layout .order-line .delivery-details summary { color: var(--tl-blue-bright); font-size: 11px; cursor: pointer; }
+body.trader-layout .order-line-actions { flex-wrap: wrap; gap: 8px; }
+body.trader-layout .order-line-actions select { min-height: 34px; padding: 6px 9px; border: 1px solid var(--tl-line); border-radius: 10px; color: var(--tl-ink); background: var(--tl-soft); font-size: 11px; }
+body.trader-layout .order-line-actions .outline-button { min-height: 34px; padding: 6px 10px; border-color: var(--tl-line); color: var(--tl-blue-bright); background: var(--tl-soft); }
+body.trader-layout .badge { padding: 4px 8px; font-size: 9px; letter-spacing: 0; }
+body.trader-layout .badge-pending { color: #765000; background: #fff1c7; }
+body.trader-layout .badge-paid { color: #08734e; background: #d8f6e9; }
+body.trader-layout .badge-bad { color: #fff; background: var(--tl-red); }
+
+/* ============ PUBLIC SHOP PAGE ============ */
+body.trader-layout .store-page { position: relative; max-width: none; padding: 0; }
+body.trader-layout .store-page .page-back-button { position: absolute; top: 10px; left: 10px; z-index: 2; margin: 0; color: #fff; background: rgba(8,14,40,.55); }
+body.trader-layout .store-profile { margin: 0; }
+body.trader-layout .store-cover { height: 94px; margin: -15px -15px 0; border-radius: 0; background: linear-gradient(120deg, var(--tl-blue), #7c3aed 60%, var(--tl-orange)); }
+body.trader-layout .store-card { position: relative; margin-top: -30px; padding: 0 3px; border: 0; border-radius: 0; background: none; }
+body.trader-layout .store-avatar { width: 66px; height: 66px; margin-top: 0; border: 4px solid var(--tl-bg); font-size: 26px; }
+body.trader-layout .store-head { gap: 3px; margin-top: 7px; }
+body.trader-layout .store-head h1 { font-size: 21px; }
+body.trader-layout .store-handle { color: var(--tl-muted); font-size: 11px; }
+body.trader-layout .store-bio { margin-top: 8px; color: var(--tl-muted); font-size: 12px; }
+body.trader-layout .store-stats { gap: 8px; margin: 13px 0 0; }
+body.trader-layout .store-stats > div { padding: 8px 5px; border: 0; border-radius: 12px; color: var(--tl-muted); background: var(--tl-soft); font-size: 11px; }
+body.trader-layout .store-stats strong { color: var(--tl-ink); font-size: 16px; }
+body.trader-layout .store-stats span { color: var(--tl-muted); font-size: 11px; }
+body.trader-layout .store-actions { display: grid; grid-template-columns: 1fr 1fr auto; gap: 7px; margin-top: 11px; }
+body.trader-layout .store-actions > button { flex: none; min-height: 40px; padding: 0 12px; border-radius: 11px; font-size: 11px; }
+body.trader-layout .store-actions .primary-button { border: 1px solid var(--tl-blue); }
+body.trader-layout .store-own-note { grid-column: 1 / -1; color: var(--tl-muted); font-size: 11px; }
+body.trader-layout .store-trust { margin: 12px 0 0; padding: 10px; border: 0; border-radius: 12px; color: var(--tl-ink); background: var(--tl-soft); font-size: 10px; }
+body.trader-layout .store-section-title { margin: 16px 0 9px; font-size: 17px; }
+body.trader-layout #store-products { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 9px; margin: 0 0 16px; }
+body.trader-layout #store-products .product-card { border: 1px solid var(--tl-line); border-radius: 13px; color: var(--tl-ink); background: var(--tl-surface); box-shadow: none; transform: none; }
+body.trader-layout #store-products .product-card:hover { transform: none; border-color: var(--tl-blue-bright); }
+body.trader-layout #store-products .product-image-wrap { height: auto; aspect-ratio: 1.1 / 1; background: linear-gradient(135deg, #2434b8, #1773ee); }
+body.trader-layout #store-products .product-card:nth-child(3n+2) .product-image-wrap { background: linear-gradient(135deg, #7c3aed, #c026d3); }
+body.trader-layout #store-products .product-card:nth-child(3n) .product-image-wrap { background: linear-gradient(135deg, #0e9f8e, #12a36b); }
+body.trader-layout #store-products .product-image { padding: 0; object-fit: cover; }
+body.trader-layout #store-products .availability:not(.sold-out), body.trader-layout #store-products .product-category, body.trader-layout #store-products .product-description, body.trader-layout #store-products .small-add { display: none; }
+body.trader-layout #store-products .availability { top: 5px; left: 5px; padding: 2px 6px; font-size: 8px; }
+body.trader-layout #store-products .off-ribbon { transform: scale(.8); transform-origin: top right; }
+body.trader-layout #store-products .add-button { right: 5px; bottom: 5px; width: 28px; height: 28px; font-size: 20px; }
+body.trader-layout #store-products .product-details { padding: 7px; }
+body.trader-layout #store-products .product-details h3 { overflow: hidden; font: 600 11px/1.3 "DM Sans", system-ui, sans-serif; text-overflow: ellipsis; white-space: nowrap; }
+body.trader-layout #store-products .product-bottom { margin-top: 2px; }
+body.trader-layout #store-products .price { color: var(--tl-muted); font-size: 11px; font-weight: 600; }
+body.trader-layout #store-products .price-block { display: flex; flex-wrap: wrap; gap: 2px 4px; align-items: baseline; }
+body.trader-layout #store-products .price-old, body.trader-layout #store-products .off-badge { display: none; }
+body.trader-layout #store-products ~ .store-reviews { margin-top: 0; }
+
+/* the tiny screens in the mockup: keep 3 columns but give the text a little less room */
+@media (max-width: 360px) {
+  body.trader-layout main { padding-right: 11px; padding-left: 11px; }
+  body.trader-layout .owned-product-card-body { padding: 6px 5px; }
+}
+@media (prefers-reduced-motion: reduce) { body.trader-layout * { transition: none !important; } }
+
+
+/* ============================================================================
+   TRADER LAYOUT: responsive rules (small phones -> tablets -> desktop)
+   ============================================================================ */
+body.trader-layout details.notice > .notice-date { display: block; margin: 4px 0 0 17px; color: var(--tl-muted); font-size: 10px; }
+body.trader-layout .notice-copy strong { white-space: normal; }
+body.trader-layout .finance-primary-amount { font-size: clamp(24px, 8vw, 30px); overflow-wrap: anywhere; }
+body.trader-layout .trader-profile-copy h1, body.trader-layout .store-head h1 { overflow-wrap: anywhere; }
+body.trader-layout .more-category-copy strong { overflow-wrap: anywhere; }
+
+/* very small phones (about 340px wide and under) */
+@media (max-width: 340px) {
+  body.trader-layout main { padding-right: 10px; padding-left: 10px; }
+  body.trader-layout .site-header { padding-right: 10px; padding-left: 10px; }
+  body.trader-layout #trader-own-products, body.trader-layout #store-products { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  body.trader-layout .trader-community-row { grid-template-columns: 1fr 1fr; }
+  body.trader-layout .community-message-preview { grid-column: 1 / -1; }
+  body.trader-layout .trader-shortcuts { gap: 6px; }
+  body.trader-layout .shortcut-icon { width: 34px; height: 34px; font-size: 18px; }
+  body.trader-layout .two-up { grid-template-columns: 1fr; }
+  body.trader-layout .more-category.delivery-link { min-height: 0; grid-template-columns: 50px minmax(0, 1fr) auto; grid-template-rows: auto; }
+  body.trader-layout .listed-product { grid-template-columns: 46px minmax(0, 1fr) auto; gap: 8px; }
+  body.trader-layout .listed-thumb { width: 46px; height: 46px; }
+  body.trader-layout .store-actions { grid-template-columns: 1fr 1fr; }
+  body.trader-layout .store-actions > button:last-child:nth-child(3) { grid-column: 1 / -1; }
+  body.trader-layout .finance-actions { flex-direction: column; }
+  body.trader-layout .list-tools > h2 { font-size: 16px; }
+}
+
+/* large phones and small tablets */
+@media (min-width: 560px) {
+  body.trader-layout main { max-width: 760px; }
+  body.trader-layout #trader-own-products, body.trader-layout #store-products { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  body.trader-layout .store-cover { margin-right: -15px; margin-left: -15px; }
+  body.trader-layout .more-category.delivery-link { min-height: 130px; }
+}
+
+/* tablets and desktops: keep one comfortable column, add a little more width */
+@media (min-width: 900px) {
+  body.trader-layout main { max-width: 860px; padding-right: 24px; padding-left: 24px; }
+  body.trader-layout #trader-own-products, body.trader-layout #store-products { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+  body.trader-layout .store-cover { margin-right: -24px; margin-left: -24px; }
+  body.trader-layout .store-page .page-back-button { left: 0; }
+  body.trader-layout .site-header { padding-right: max(15px, calc(50% - 430px)); padding-left: max(15px, calc(50% - 430px)); }
+}
+
+/* keep the bottom menu centred on wide screens, and clear of the phone's home bar */
+@media (min-width: 700px) {
+  body.trader-layout .bottom-nav { padding-right: calc(50% - 340px); padding-left: calc(50% - 340px); }
+}
+@supports (padding: max(0px)) {
+  body.trader-layout main { padding-bottom: max(110px, calc(96px + env(safe-area-inset-bottom))); }
+}
+/* landscape phones: less vertical bulk */
+@media (max-height: 460px) and (orientation: landscape) {
+  body.trader-layout .bottom-nav { position: static; margin-top: 20px; }
+  body.trader-layout main { padding-bottom: 20px; }
+}
