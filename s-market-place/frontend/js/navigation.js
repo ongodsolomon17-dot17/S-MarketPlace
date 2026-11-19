@@ -10,7 +10,7 @@ const ACCOUNT_TAB_PAGES = new Set(["account", "settings", "trader-dashboard", "t
 const HOME_TAB_PAGES = new Set(["home", "product", "store"]);
 
 /* Screens that use the flat "trader layout" (see the TRADER LAYOUT block at the end of style.css). */
-const TRADER_LAYOUT_PAGES = new Set(["trader-dashboard", "trader-finance", "trader-management", "trader-notifications", "trader-products", "trader-orders", "trader-fulfilled", "store"]);
+const TRADER_LAYOUT_PAGES = new Set(["trader-dashboard", "trader-finance", "trader-management", "trader-notifications", "trader-products", "trader-orders", "trader-fulfilled", "store", "settings"]);
 
 function tabFor(page) {
   if (ACCOUNT_TAB_PAGES.has(page)) return "account";
@@ -26,7 +26,7 @@ function showPage(name, options = {}) {
   // A trader who taps "Account" lands on the add-item screen; account details live under Settings.
   if (name === "account" && currentUser && currentUser.role === "trader") name = "trader-dashboard";
   activePage = name;
-  document.body.classList.toggle("trader-layout", TRADER_LAYOUT_PAGES.has(name));
+  document.body.classList.add("trader-layout");   // the flat "trader" look now applies to every screen
   stopDealTimer();                       // the Fast Finger countdown only runs while its screen is open
 
   document.querySelectorAll(".page-panel").forEach(panel => {

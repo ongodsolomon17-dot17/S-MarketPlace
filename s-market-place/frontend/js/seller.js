@@ -132,7 +132,7 @@ async function loadTraderFinance() {
 
 async function loadTraderManagement() {
   if (!currentUser || currentUser.role !== "trader") { openAuth("trader"); return; }
-  await Promise.all([loadTraderSummary(), loadNotifications(document.getElementById("management-notifications-panel"), 3)]);
+  await Promise.all([loadTraderSummary(), loadNotifications(document.getElementById("management-notifications-panel"), 3), loadChatSettings()]);
 }
 
 /** The whole notifications list (More → Notifications). */
@@ -735,33 +735,78 @@ let traderTotalSales = 0;
 
 function orderLineCode(line) { return line.product_id ? `PRD-${line.product_id}` : line.deal_id ? `DEAL-${line.deal_id}` : ""; }
 
+/* Stage of one order line: To pack -> Ready to ship -> Shipped, or "Issues" while the buyer's report is open. */
+const ORDER_TABS = [["pack", "To pack"], ["ready", "Ready to ship"], ["shipped", "Shipped"], ["issues", "Issues"]];
+const STAGE_LABEL = { pack: "To pack", ready: "Ready to ship", shipped: "Shipped", issues: "Issue" };
+let ordersTab = "";
+
+function orderStage(line) {
+  if (line.escrow_status === "disputed") return "issues";
+  if (line.fulfilment_status === "Processing") return "ready";
+  if (line.fulfilment_status === "Shipped") return "shipped";
+  return "pack";
+}
+
+function shortPersonName(full) {
+  const parts = String(full || "").trim().split(/\s+/).filter(Boolean);
+  if (parts.length > 1) return `${parts[0]} ${parts[parts.length - 1][0].toUpperCase()}.`;
+  return parts[0] || "Buyer";
+}
+
+function paidAgoText(value) {
+  const time = Date.parse(value || "");
+  if (!time) return "";
+  const minutes = Math.max(1, Math.round((Date.now() - time) / 60000));
+  if (minutes < 60) return `Paid ${minutes} min ago`;
+  const hours = Math.round(minutes / 60);
+  if (hours < 48) return `Paid ${hours} hour${hours === 1 ? "" : "s"} ago`;
+  return `Paid ${Math.round(hours / 24)} days ago`;
+}
+
+function isLateOrder(line) {
+  const time = Date.parse(line.paid_at || "");
+  return orderStage(line) === "pack" && time && Date.now() - time > 24 * 3600 * 1000;
+}
+
+function orderThumbHTML(line) {
+  const image = line.product_image || line.image ? imageURL(line.product_image || line.image) : "";
+  if (image) return `<span class="ticket-thumb"><img src="${escapeHTML(image)}" alt="" loading="lazy"></span>`;
+  return `<span class="ticket-thumb ph-${Math.abs(Number(line.product_id || line.deal_id || 0)) % 4}" aria-hidden="true">${escapeHTML((line.product_name || "?").slice(0, 1).toUpperCase())}</span>`;
+}
+
+/** The main button for a line: pack it, ship it, or show the delivery QR. */
+function orderPrimaryHTML(line, inSheet) {
+  const close = inSheet ? " data-order-sheet-close" : "";
+  if (line.fulfilment_status === "Delivered") return "";
+  if (line.fulfilment_status === "Shipped") {
+    if (line.escrow_status === "held" && !line.scanned) return `<button type="button" class="primary-button" data-delivery-qr="${line.item_id}"${close}>Delivery QR</button>`;
+    return line.scanned && line.escrow_status === "held" ? '<span class="badge badge-paid">Package confirmed</span>' : "";
+  }
+  const packing = line.fulfilment_status !== "Processing";
+  return `<button type="button" class="primary-button${packing ? "" : " is-ship"}" data-order-advance="${line.item_id}" data-next-status="${packing ? "Processing" : "Shipped"}">${packing ? "Mark as packed" : "Mark as shipped"}</button>`;
+}
+
 function orderLineHTML(line, fulfilled) {
+  const stage = orderStage(line);
+  const late = isLateOrder(line);
   const paidOut = line.escrow_status === "released";
-  const chip = fulfilled
-    ? `<span class="badge ${paidOut ? "badge-paid" : line.escrow_status === "disputed" ? "badge-bad" : "badge-pending"}">${paidOut ? "Credited" : line.escrow_status === "disputed" ? "On hold" : "Delivered"}</span>` : "";
-  const controls = fulfilled ? "" : `
-          <select data-item-status="${line.item_id}" aria-label="Delivery condition">
-            ${Object.entries(FULFILMENT).map(([key, text]) =>
-              `<option value="${key}" ${key === line.fulfilment_status ? "selected" : ""} ${key === "Pending" ? "disabled" : ""}>${text}</option>`).join("")}
-          </select>
-          <button type="button" class="outline-button" data-update-item="${line.item_id}">Save update</button>`;
+  const pill = fulfilled
+    ? `<span class="stage-pill ${paidOut ? "stage-shipped" : line.escrow_status === "disputed" ? "stage-issues" : "stage-ready"}">${paidOut ? "Credited" : line.escrow_status === "disputed" ? "On hold" : "Delivered"}</span>`
+    : `<span class="stage-pill stage-${stage}">${STAGE_LABEL[stage]}</span>`;
+  const place = [line.shipping_city, line.shipping_state].filter(Boolean).join(", ");
   return `
-      <article class="order-line compact">
-        <div class="order-line-main">
-          <strong>${escapeHTML(line.shipping_name)}</strong>
-          <small>${escapeHTML(line.product_name)} × ${line.quantity} · Order #${line.order_id}${orderLineCode(line) ? ` · ${orderLineCode(line)}` : ""}</small>
-          <small>${formatPrice(line.unit_price * line.quantity)}${line.paid_at ? ` · paid ${escapeHTML(formatDate(line.paid_at))}` : ""}</small>
-          <details class="delivery-details">
-            <summary>Delivery details</summary>
-            <p>${escapeHTML(line.shipping_phone)}<br>${escapeHTML(line.shipping_address)}, ${escapeHTML(line.shipping_city)}, ${escapeHTML(line.shipping_state)}</p>
-          </details>
-          <small class="escrow-line">${escrowLineText(line)}</small>
+      <article class="order-line compact order-ticket${late ? " is-late" : ""}" data-order-details="${line.item_id}" tabindex="0" aria-label="Order ${line.order_id}, ${escapeHTML(line.product_name)}. Open details">
+        <header class="ticket-head"><strong>Order #${line.order_id} · ${escapeHTML(shortPersonName(line.shipping_name))}</strong>${pill}</header>
+        <div class="ticket-body">
+          ${orderThumbHTML(line)}
+          <div class="ticket-info">
+            <strong>${escapeHTML(line.product_name)} × ${line.quantity}</strong>
+            ${orderLineCode(line) ? `<small>${escapeHTML(orderLineCode(line))}</small>` : ""}
+            <span class="ticket-earn">You earn ${formatPrice(line.seller_amount)}</span>
+          </div>
         </div>
-        <div class="order-line-actions">
-          ${chip}${controls}
-          ${line.escrow_status === "held" && !line.scanned ? `<button type="button" class="outline-button" data-delivery-qr="${line.item_id}">Delivery QR</button>` : ""}
-          ${line.scanned && line.escrow_status === "held" ? '<span class="badge badge-paid">Package confirmed</span>' : ""}
-        </div>
+        <p class="ticket-meta">${place ? `<span>📍 ${escapeHTML(place)}</span>` : ""}<span class="${late ? "late" : ""}">${escapeHTML(paidAgoText(line.paid_at))}</span></p>
+        <div class="ticket-actions">${fulfilled ? "" : orderPrimaryHTML(line, false)}<button type="button" class="outline-button" data-order-details="${line.item_id}">Details</button></div>
       </article>`;
 }
 
@@ -784,14 +829,42 @@ function sortOrderLines(lines, sort) {
   return [...lines].sort(by[sort] || by.newest);
 }
 
+function orderTabsHTML(counts, active) {
+  return `<div class="order-tabs" role="tablist" aria-label="Order stage">${ORDER_TABS.map(([key, label]) =>
+    `<button type="button" role="tab" class="order-tab" aria-selected="${key === active}" data-order-tab="${key}">${label}<span class="order-tab-count">${counts[key]}</span></button>`).join("")}</div>`;
+}
+
 function renderOrderScope(scope, target, lines, fulfilled) {
   if (!target) return;
   const state = listStateFor(scope);
   const shown = sortOrderLines(filterOrderLines(lines, state.query), state.sort);
   updateListCount(scope, shown.length, lines.length, "order");
-  if (!lines.length) target.innerHTML = `<p class="muted">${fulfilled ? "Delivered orders will appear here." : "No orders are waiting for fulfilment."}</p>`;
-  else if (!shown.length) target.innerHTML = `<p class="muted list-empty">No orders match “${escapeHTML(state.query)}”.</p>`;
-  else target.innerHTML = `<div class="trader-order-list">${shown.map(line => orderLineHTML(line, fulfilled)).join("")}</div>`;
+  let tabsBar = null;
+  if (!fulfilled) {
+    tabsBar = document.getElementById("trader-order-tabs");
+    if (!tabsBar) {
+      tabsBar = document.createElement("div");
+      tabsBar.id = "trader-order-tabs";
+      const tools = target.parentElement && target.parentElement.querySelector(".list-tools");
+      if (tools) tools.before(tabsBar); else target.before(tabsBar);
+    }
+  }
+  if (!lines.length) {
+    if (tabsBar) tabsBar.innerHTML = "";
+    target.innerHTML = `<p class="muted">${fulfilled ? "Delivered orders will appear here." : "No orders are waiting for fulfilment."}</p>`;
+    return;
+  }
+  let visible = shown;
+  if (!fulfilled) {
+    const counts = { pack: 0, ready: 0, shipped: 0, issues: 0 };
+    shown.forEach(line => { counts[orderStage(line)] += 1; });
+    if (!ordersTab) ordersTab = ORDER_TABS.map(t => t[0]).find(key => counts[key] > 0) || "pack";
+    tabsBar.innerHTML = orderTabsHTML(counts, ordersTab);
+    visible = shown.filter(line => orderStage(line) === ordersTab);
+  }
+  if (!shown.length) target.innerHTML = `<p class="muted list-empty">No orders match “${escapeHTML(state.query)}”.</p>`;
+  else if (!visible.length) target.innerHTML = '<p class="muted list-empty">Nothing in this stage right now.</p>';
+  else target.innerHTML = `<div class="trader-order-list">${visible.map(line => orderLineHTML(line, fulfilled)).join("")}</div>`;
 }
 
 function renderTraderOrderLists() {
@@ -836,3 +909,204 @@ async function updateOrderLine(id) {
     showToast(error.message);
   }
 }
+
+
+/* ----------------------------------------------------------------------------
+   Buyer chat setting (More tab): the built-in chat, or the trader's own chat link.
+   API contract the backend must provide (and VALIDATE again on the server):
+     GET /api/trader/chat-settings  ->  { mode: "system" | "external", url: "https://..." }
+     PUT /api/trader/chat-settings  <-  { mode, url }      (url only when mode is "external")
+   The public shop payload (GET /api/shops/<username>) then carries chat_mode and chat_url.
+   ---------------------------------------------------------------------------- */
+function chatModeValue() { return document.querySelector('input[name="chat-mode"]:checked')?.value || "system"; }
+
+function syncChatModeUI() {
+  const field = document.getElementById("chat-link-field");
+  if (field) field.hidden = chatModeValue() !== "external";
+}
+
+function setChatFeedback(text, isError = false) {
+  const el = document.getElementById("chat-feedback");
+  if (!el) return;
+  el.textContent = text || "";
+  el.classList.toggle("is-error", Boolean(isError));
+}
+
+async function loadChatSettings() {
+  if (!document.getElementById("chat-settings-panel")) return;
+  setChatFeedback("");
+  try {
+    const settings = await apiRequest("/api/trader/chat-settings");
+    const mode = settings.mode === "external" ? "external" : "system";
+    const radio = document.querySelector(`input[name="chat-mode"][value="${mode}"]`);
+    if (radio) radio.checked = true;
+    const input = document.getElementById("chat-url-input");
+    if (input) input.value = mode === "external" ? String(settings.url || "") : "";
+  } catch (_) {
+    setChatFeedback("Chat settings could not be loaded yet.", true);
+  }
+  syncChatModeUI();
+}
+
+async function saveChatSettings() {
+  const mode = chatModeValue();
+  const payload = { mode };
+  if (mode === "external") {
+    const check = validateChatLink(document.getElementById("chat-url-input").value);
+    if (!check.ok) { setChatFeedback(check.error, true); return; }
+    payload.url = check.url;
+  }
+  const button = document.getElementById("chat-save-button");
+  button.disabled = true;
+  try {
+    const result = await apiRequest("/api/trader/chat-settings", { method: "PUT", body: JSON.stringify(payload) });
+    setChatFeedback(result.message || "Chat setting saved.");
+    showToast(result.message || "Chat setting saved.");
+  } catch (error) {
+    setChatFeedback(error.message, true);
+  }
+  button.disabled = false;
+}
+
+document.addEventListener("change", event => { if (event.target.name === "chat-mode") { syncChatModeUI(); setChatFeedback(""); } });
+document.addEventListener("click", event => { if (event.target.closest?.("#chat-save-button")) saveChatSettings(); });
+
+
+/* ----------------------------------------------------------------------------
+   Order details sheet: progress steps, items, who to deliver to, payment, main action.
+   ---------------------------------------------------------------------------- */
+let openOrderItemId = null;
+
+function orderStepsHTML(line) {
+  const done = line.fulfilment_status === "Delivered" ? 4 : line.fulfilment_status === "Shipped" ? 3 : line.fulfilment_status === "Processing" ? 2 : 1;
+  return `<ol class="order-steps" style="--fill:${Math.min(100, (done - 1) * 33.4)}%">${["Paid", "Packed", "Shipped", "Delivered"].map((label, i) => {
+    const n = i + 1;
+    return `<li class="${n <= done ? "is-done" : n === done + 1 ? "is-current" : ""}"><span class="step-dot">${n <= done ? "✓" : n}</span><span class="step-label">${label}</span></li>`;
+  }).join("")}</ol>`;
+}
+
+function orderSheetHTML(line) {
+  const address = [line.shipping_address, line.shipping_city, line.shipping_state].filter(Boolean).join(", ");
+  const phone = String(line.shipping_phone || "");
+  const telHref = phone.replace(/[^\d+]/g, "");
+  const total = formatPrice(line.unit_price * line.quantity);
+  const primary = orderPrimaryHTML(line, true);
+  const markDelivered = line.fulfilment_status === "Shipped" && line.escrow_status === "held" && !line.scanned
+    ? `<button type="button" class="outline-button" data-order-advance="${line.item_id}" data-next-status="Delivered">Mark as delivered</button>` : "";
+  return `
+    <header class="sheet-head">
+      <button type="button" class="management-back-button" data-order-sheet-close aria-label="Close order details">←</button>
+      <div><p class="eyebrow">Order #${line.order_id}</p><h2 id="order-sheet-title">Order details</h2></div>
+    </header>
+    ${orderStepsHTML(line)}
+    <div class="sheet-scroll">
+      <section class="sheet-card"><h3>Items</h3>
+        <div class="ticket-body">${orderThumbHTML(line)}<div class="ticket-info">
+          <strong>${escapeHTML(line.product_name)} × ${line.quantity}</strong>
+          <small>${escapeHTML(orderLineCode(line))}${orderLineCode(line) ? " · " : ""}${formatPrice(line.unit_price)} each</small>
+          <span class="ticket-earn">You earn ${formatPrice(line.seller_amount)}</span></div></div>
+      </section>
+      <section class="sheet-card"><h3>Deliver to</h3>
+        <dl class="sheet-rows">
+          <div><dt>Buyer</dt><dd>${escapeHTML(line.shipping_name)}</dd></div>
+          <div><dt>Phone</dt><dd>${escapeHTML(phone)}</dd></div>
+          <div><dt>Address</dt><dd>${escapeHTML(address)}</dd></div>
+        </dl>
+        <div class="sheet-two">
+          ${telHref ? `<a class="outline-button" href="tel:${escapeHTML(telHref)}">📞 Call buyer</a>` : ""}
+          <button type="button" class="outline-button" data-copy-address="${escapeHTML(address)}">⧉ Copy address</button>
+        </div>
+      </section>
+      <section class="sheet-card"><h3>Payment</h3>
+        <dl class="sheet-rows">
+          <div><dt>Order total</dt><dd>${total}</dd></div>
+          ${line.paid_at ? `<div><dt>Paid</dt><dd>${escapeHTML(formatDate(line.paid_at))}</dd></div>` : ""}
+        </dl>
+        ${escrowLineText(line) ? `<p class="sheet-note">${escrowLineText(line)}</p>` : ""}
+      </section>
+    </div>
+    ${primary || markDelivered ? `<footer class="sheet-foot">${primary}${markDelivered}</footer>` : ""}`;
+}
+
+function ensureOrderSheet() {
+  let sheet = document.getElementById("order-sheet");
+  if (sheet) return sheet;
+  sheet = document.createElement("div");
+  sheet.id = "order-sheet";
+  sheet.className = "order-sheet";
+  sheet.hidden = true;
+  sheet.innerHTML = '<div class="order-sheet-backdrop" data-order-sheet-close></div><section class="order-sheet-panel" role="dialog" aria-modal="true" aria-labelledby="order-sheet-title"></section>';
+  document.body.appendChild(sheet);
+  return sheet;
+}
+
+function renderOrderSheet() {
+  const line = traderOrderLines.find(item => item.item_id === openOrderItemId);
+  const sheet = document.getElementById("order-sheet");
+  if (!line || !sheet) { closeOrderSheet(); return; }
+  sheet.querySelector(".order-sheet-panel").innerHTML = orderSheetHTML(line);
+}
+
+function openOrderSheet(itemId) {
+  if (!traderOrderLines.some(item => item.item_id === itemId)) return;
+  openOrderItemId = itemId;
+  const sheet = ensureOrderSheet();
+  renderOrderSheet();
+  sheet.hidden = false;
+  document.body.classList.add("sheet-open");
+  sheet.querySelector("[data-order-sheet-close].management-back-button")?.focus();
+}
+
+function closeOrderSheet() {
+  const sheet = document.getElementById("order-sheet");
+  if (sheet) sheet.hidden = true;
+  openOrderItemId = null;
+  document.body.classList.remove("sheet-open");
+}
+
+/** Move one order line forward (packed -> shipped -> delivered). */
+async function advanceOrderLine(id, status, button) {
+  if (button) button.disabled = true;
+  try {
+    const result = await apiRequest(`/api/trader/order-items/${id}`, { method: "PATCH", body: JSON.stringify({ fulfilment_status: status }) });
+    showToast(result.message);
+    await loadTraderOrders();
+    if (openOrderItemId) renderOrderSheet();
+  } catch (error) {
+    showToast(error.message);
+    if (button) button.disabled = false;
+  }
+}
+
+async function copyOrderAddress(text) {
+  try { await navigator.clipboard.writeText(text); showToast("Address copied."); }
+  catch (_) {
+    const box = document.createElement("textarea");
+    box.value = text; box.setAttribute("readonly", ""); box.style.position = "fixed"; box.style.opacity = "0";
+    document.body.appendChild(box); box.select();
+    try { document.execCommand("copy"); showToast("Address copied."); } catch (__) { showToast("Could not copy. Please copy it by hand."); }
+    box.remove();
+  }
+}
+
+document.addEventListener("click", event => {
+  const target = event.target;
+  if (!target.closest) return;
+  const tab = target.closest("[data-order-tab]");
+  if (tab) { ordersTab = tab.dataset.orderTab; renderTraderOrderLists(); return; }
+  const advance = target.closest("[data-order-advance]");
+  if (advance) { advanceOrderLine(Number(advance.dataset.orderAdvance), advance.dataset.nextStatus, advance); return; }
+  if (target.closest("[data-order-sheet-close]")) { closeOrderSheet(); return; }
+  const copy = target.closest("[data-copy-address]");
+  if (copy) { copyOrderAddress(copy.dataset.copyAddress); return; }
+  const details = target.closest("[data-order-details]");
+  if (details) {
+    const control = target.closest("button, a");
+    if (control && !control.hasAttribute("data-order-details")) return;   // QR / other buttons do their own thing
+    openOrderSheet(Number(details.dataset.orderDetails));
+  }
+});
+document.addEventListener("keydown", event => {
+  if (event.key === "Escape" && openOrderItemId) closeOrderSheet();
+  if ((event.key === "Enter" || event.key === " ") && event.target.matches?.("article[data-order-details]")) { event.preventDefault(); openOrderSheet(Number(event.target.dataset.orderDetails)); }
+});

@@ -10,10 +10,11 @@ const THEME_PREFERENCE_KEY = "smpTheme";
 
 function getThemePreference() {
   try {
-    return localStorage.getItem(THEME_PREFERENCE_KEY) === "light" ? "light" : "dark";
-  } catch (_) {
-    return "dark";
-  }
+    const saved = localStorage.getItem(THEME_PREFERENCE_KEY);
+    if (saved === "light" || saved === "dark") return saved;
+  } catch (_) { /* fall through to the system setting */ }
+  // Nothing chosen yet: follow the phone / computer's own light or dark setting.
+  return window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
 }
 
 function applyThemePreference(theme = getThemePreference()) {
@@ -32,6 +33,14 @@ function saveThemePreference(theme) {
   }
   applyThemePreference(selectedTheme);
 }
+
+// If the system theme changes while the user has not picked one, follow it live.
+try {
+  window.matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => {
+    let saved = null; try { saved = localStorage.getItem(THEME_PREFERENCE_KEY); } catch (_) {}
+    if (!saved) applyThemePreference();
+  });
+} catch (_) { /* older browsers: no live updates */ }
 
 /** Escape text before putting it into HTML, so user-written text can never inject code. */
 function escapeHTML(value) {

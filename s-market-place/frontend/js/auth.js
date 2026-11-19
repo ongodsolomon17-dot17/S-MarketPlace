@@ -168,7 +168,7 @@ async function submitAuth(event) {
 /** Keep the header button and the bottom-menu label in step with who is signed in. */
 function updateHeaderAccount() {
   const button = document.getElementById("header-account-button");
-  button.title = currentUser ? `${currentUser.first_name} · ${currentUser.role}` : "Sign in / Join";
+  if (button) button.title = currentUser ? `${currentUser.first_name} · ${currentUser.role}` : "Sign in / Join";
   if (typeof syncSubscriptionCrown === "function") syncSubscriptionCrown();
   else {
     const subscriptionButton = document.getElementById("header-subscription-button");

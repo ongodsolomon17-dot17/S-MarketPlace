@@ -189,7 +189,7 @@ document.addEventListener("click", async event => {
   const followButton = closest("[data-follow-shop]");
   if (followButton) { await toggleFollowShop(followButton); return; }
   const messageButton = closest("[data-message-trader]");
-  if (messageButton) { openChat(messageButton.dataset.messageTrader); return; }
+  if (messageButton) { openChat(messageButton.dataset.messageTrader, { mode: messageButton.dataset.chatMode, url: messageButton.dataset.chatUrl }); return; }
   const shareButton = closest("[data-share-shop]");
   if (shareButton) { await shareShop(shareButton.dataset.shareShop); return; }
   if (closest("[data-open-my-store]")) { openMyStore(); return; }

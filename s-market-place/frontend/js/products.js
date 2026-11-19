@@ -161,28 +161,56 @@ function refreshFeed() {
 /* ----------------------------------------------------------------------------
    Trader shops
    ---------------------------------------------------------------------------- */
-/** Show trader shops matching the search box (all shops when it is empty). */
+/** The finder stays closed until tapped; then it lists shops and can be searched by name or @username. */
+let traderFinderOpen = false;
 async function loadTraders() {
-  const query = document.getElementById("market-search").value.trim();
+  if (!traderFinderOpen) return;
+  const query = (document.getElementById("trader-find-input")?.value || "").trim();
   const target = document.getElementById("trader-results");
   try {
     const traders = await apiRequest(`/api/traders?q=${encodeURIComponent(query)}`);
-    target.innerHTML = traders.length ? traders.map(trader => `
-      <article class="trader-card">
-        <div class="trader-avatar">${trader.profile_image
-          ? `<img src="${escapeHTML(trader.profile_image)}" alt="" class="avatar-image">`
-          : escapeHTML((trader.store_name || trader.first_name || "T").slice(0, 1).toUpperCase())}</div>
-        <div class="trader-card-copy">
-          <h4>${escapeHTML(trader.store_name || `${trader.first_name} ${trader.last_name}`)} ${verifiedBadgeHTML(trader.is_verified, true)}</h4>
-          <p>@${escapeHTML(trader.username)} · ${trader.product_count} listed item(s)</p>
-          <small>${escapeHTML(trader.store_description || "Browse this trader's products.")}</small>
+    target.innerHTML = traders.length ? traders.map(trader => {
+      const name = trader.store_name || `${trader.first_name} ${trader.last_name}`;
+      const username = escapeHTML(trader.username);
+      const items = Number(trader.product_count) || 0;
+      return `
+      <article class="trader-card" data-open-store="${username}">
+        <div class="trader-card-top">
+          <div class="trader-avatar" aria-hidden="true">${trader.profile_image
+            ? `<img src="${escapeHTML(trader.profile_image)}" alt="" class="avatar-image">`
+            : escapeHTML((trader.store_name || trader.first_name || "T").slice(0, 1).toUpperCase())}</div>
+          <div class="trader-card-copy">
+            <h4>${escapeHTML(name)} ${verifiedBadgeHTML(trader.is_verified, true)}</h4>
+            <p class="trader-handle">@${username}</p>
+          </div>
         </div>
-        <button type="button" class="outline-button" data-open-store="${escapeHTML(trader.username)}">Visit shop →</button>
-      </article>`).join("") : '<p class="muted">No trader shops matched that search yet.</p>';
+        <p class="trader-bio">${escapeHTML(trader.store_description || "Browse this trader's products.")}</p>
+        <div class="trader-card-foot">
+          <span class="trader-stat"><strong>${items}</strong> ${items === 1 ? "item" : "items"}</span>
+          ${trader.rating ? `<span class="trader-stat">★ <strong>${Number(trader.rating).toFixed(1)}</strong></span>` : ""}
+          <button type="button" class="outline-button" data-open-store="${username}">Visit shop</button>
+        </div>
+      </article>`;
+    }).join("") : '<p class="muted">No trader shops matched that search yet.</p>';
   } catch (error) {
     target.innerHTML = `<p class="muted">${escapeHTML(error.message)}</p>`;
   }
 }
+
+(function setUpTraderFinder() {
+  const toggle = document.getElementById("trader-finder-toggle");
+  const panel = document.getElementById("trader-finder-panel");
+  const input = document.getElementById("trader-find-input");
+  if (!toggle || !panel || !input) return;
+  let timer;
+  toggle.addEventListener("click", () => {
+    traderFinderOpen = !traderFinderOpen;
+    panel.hidden = !traderFinderOpen;
+    toggle.setAttribute("aria-expanded", String(traderFinderOpen));
+    if (traderFinderOpen) { loadTraders(); input.focus({ preventScroll: true }); }
+  });
+  input.addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(loadTraders, 250); });
+})();
 
 /* ----------------------------------------------------------------------------
    Product detail block

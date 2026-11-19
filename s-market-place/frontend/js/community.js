@@ -13,7 +13,7 @@
    ---------------------------------------------------------------------------- */
 function verifiedBadgeHTML(isVerified, compact = false) {
   if (!isVerified) return "";
-  return `<span class="verified-badge${compact ? " compact" : ""}" title="Verified trader">✔${compact ? "" : " Verified"}</span>`;
+  return `<span class="verified-badge${compact ? " compact" : ""}" title="Verified trader"><img class="verified-icon" src="icons/verified.png" alt="">${compact ? "" : " Verified"}</span>`;
 }
 
 function starsText(value) {
@@ -41,12 +41,48 @@ function chatURL(params = {}) {
 
 function chatIsReady() { return Boolean(chatURL()); }
 
-/** Open the chat app (optionally straight to a conversation with one trader). */
-function openChat(withUsername = "") {
-  if (!chatIsReady()) { showToast("Chat is coming soon."); return; }
+/** Check a chat link a trader pasted. Strict on purpose: https only, a real public website, no hidden logins.
+ *  (The server must repeat these checks: never trust the browser alone.) */
+function validateChatLink(raw) {
+  const text = String(raw || "").trim();
+  const fail = error => ({ ok: false, error });
+  if (!text) return fail("Paste your chat link first.");
+  if (text.length > 300) return fail("That link is too long (300 characters at most).");
+  if (/[\s<>"'`\\\u0000-\u001f]/.test(text)) return fail("Links cannot contain spaces or special characters.");
+  let url;
+  try { url = new URL(text); } catch (_) { return fail("That does not look like a valid link."); }
+  if (url.protocol !== "https:") return fail("Only secure https:// links are allowed.");
+  if (url.username || url.password) return fail("Remove the username or password from the link.");
+  const host = url.hostname.toLowerCase();
+  if (!host.includes(".") || host.includes(":") || /^\d{1,3}(\.\d{1,3}){3}$/.test(host) || host === "localhost" || host.endsWith(".local") || host.endsWith(".internal")) {
+    return fail("Use a public website address (not an IP address or a local address).");
+  }
+  const allowed = window.SMP_CHAT_ALLOWED_HOSTS;
+  if (Array.isArray(allowed) && allowed.length && !allowed.some(h => host === h || host.endsWith("." + h))) {
+    return fail("That chat website is not on the allowed list.");
+  }
+  return { ok: true, url: url.toString(), host };
+}
+
+/** Can this shop be messaged? (its own chat link, or the built-in chat once it is switched on) */
+function shopChatReady(shop) {
+  if (shop && shop.chat_mode === "external") return validateChatLink(shop.chat_url).ok;
+  return chatIsReady();
+}
+
+/** Open the right chat: the trader's own link (after a warning) or the built-in chat. */
+function openChat(withUsername = "", shopChat = null) {
   if (!currentUser) { showToast("Please log in to send a message."); openAuth("login"); return; }
-  const url = chatURL({ with: withUsername, from: currentUser.username });
-  window.open(url, "_blank", "noopener");
+  if (shopChat && shopChat.mode === "external") {
+    const check = validateChatLink(shopChat.url);
+    if (!check.ok) { showToast("This trader's chat link is not available right now."); return; }
+    const message = `You are leaving S-Market Place to chat on ${check.host}.\n\nOnly share what you are comfortable sharing, and never send passwords or card details. Continue?`;
+    if (!window.confirm(message)) return;
+    window.open(check.url, "_blank", "noopener,noreferrer");
+    return;
+  }
+  if (!chatIsReady()) { showToast("Chat is coming soon."); return; }
+  window.open(chatURL({ with: withUsername, from: currentUser.username }), "_blank", "noopener,noreferrer");
 }
 
 function refreshChatStatus() {
@@ -66,7 +102,7 @@ function storeProfileHTML(shop) {
   const actions = shop.is_mine
     ? '<p class="store-own-note">This is how buyers see your shop.</p>'
     : `<button type="button" class="${shop.following ? "outline-button" : "primary-button"}" data-follow-shop="${escapeHTML(shop.username)}" data-following="${shop.following}">${shop.following ? "Following ✓" : "Follow"}</button>
-       <button type="button" class="outline-button" data-message-trader="${escapeHTML(shop.username)}">Message${chatIsReady() ? "" : " · Soon"}</button>
+       <button type="button" class="outline-button" data-message-trader="${escapeHTML(shop.username)}" data-chat-mode="${escapeHTML(shop.chat_mode || "")}" data-chat-url="${escapeHTML(shop.chat_url || "")}">Message${shopChatReady(shop) ? "" : " · Soon"}</button>
        <button type="button" class="outline-button" data-share-shop="${escapeHTML(shop.username)}">Share</button>`;
   return `
     <div class="store-cover" aria-hidden="true"></div>
@@ -85,9 +121,7 @@ function storeProfileHTML(shop) {
         <div><strong>${shop.sold}</strong><span>Sold</span></div>
       </div>
       <div class="store-actions">${actions}</div>
-      <p class="store-trust">${shop.is_verified
-        ? "✔ Verified by S-Market Place. Payments are held in escrow until you confirm delivery."
-        : "Payments are held in escrow until you confirm delivery. Ratings come only from buyers who received their orders."}</p>
+      ${shop.rating_count ? `<button type="button" class="store-reviews-button" data-open-reviews="${escapeHTML(shop.username)}" aria-haspopup="dialog">★ Reviews (${escapeHTML(shop.rating_count)})</button>` : ""}
     </div>`;
 }
 
@@ -103,6 +137,7 @@ async function openStore(username, backTo = "home") {
   profile.innerHTML = '<p class="muted">Loading this shop…</p>';
   grid.innerHTML = "";
   reviews.hidden = true;
+  reviews.classList.remove("is-open");
   try {
     const [{ shop }, { products }] = await Promise.all([
       apiRequest(`/api/shops/${encodeURIComponent(username)}`),
@@ -110,7 +145,6 @@ async function openStore(username, backTo = "home") {
     ]);
     profile.innerHTML = storeProfileHTML(shop);
     grid.innerHTML = products.length ? products.map(productCardHTML).join("") : '<p class="muted">This trader has no items on sale right now.</p>';
-    if (shop.rating_count) loadShopReviews(username);
   } catch (error) {
     profile.innerHTML = `<p class="muted">${escapeHTML(error.message)}</p>`;
   }
@@ -120,20 +154,46 @@ function openMyStore() {
   if (currentUser?.username) openStore(currentUser.username, "trader-management");
 }
 
-async function loadShopReviews(username) {
-  const panel = document.getElementById("store-reviews");
+async function loadShopReviews(username, limit = 50) {
   const list = document.getElementById("store-reviews-list");
+  list.innerHTML = '<p class="muted">Loading reviews…</p>';
   try {
-    const { reviews } = await apiRequest(`/api/shops/${encodeURIComponent(username)}/reviews?limit=10`);
-    panel.hidden = reviews.length === 0;
-    list.innerHTML = reviews.map(review => `
+    const { reviews } = await apiRequest(`/api/shops/${encodeURIComponent(username)}/reviews?limit=${limit}`);
+    list.innerHTML = reviews.length ? reviews.map(review => `
       <article class="review-row">
         <div class="review-top"><span class="stars" aria-label="${review.stars} out of 5">${starsText(review.stars)}</span><small>${escapeHTML(review.buyer)} · ${escapeHTML(formatDate(review.created_at))}</small></div>
         ${review.comment ? `<p>${escapeHTML(review.comment)}</p>` : ""}
         <small class="muted">${escapeHTML(review.product_name)}</small>
-      </article>`).join("");
-  } catch (_) { panel.hidden = true; }
+      </article>`).join("") : '<p class="muted">No reviews yet.</p>';
+  } catch (_) { list.innerHTML = '<p class="muted">Reviews could not be loaded. Please try again.</p>'; }
 }
+
+/** The "Reviews" button on a shop opens all of that shop's reviews in a pop-up. */
+function openShopReviews(username) {
+  const panel = document.getElementById("store-reviews");
+  panel.hidden = false;
+  panel.classList.add("is-open");
+  loadShopReviews(username);
+  panel.querySelector("[data-close-reviews]")?.focus();
+}
+function closeShopReviews() {
+  const panel = document.getElementById("store-reviews");
+  panel.classList.remove("is-open");
+  panel.hidden = true;
+}
+document.addEventListener("click", event => {
+  const open = event.target.closest?.("[data-open-reviews]");
+  if (open) { openShopReviews(open.dataset.openReviews); return; }
+  const panel = document.getElementById("store-reviews");
+  if (!panel || !panel.classList.contains("is-open")) return;
+  if (event.target.closest("[data-close-reviews]") || !event.target.closest("#store-reviews")) closeShopReviews();
+});
+document.addEventListener("keydown", event => { if (event.key === "Escape") closeShopReviews(); });
+// If the verified icon file is missing, fall back to a tick so the badge never looks broken.
+document.addEventListener("error", event => {
+  const img = event.target;
+  if (img && img.classList && img.classList.contains("verified-icon")) img.replaceWith(document.createTextNode("✔"));
+}, true);
 
 /* ----------------------------------------------------------------------------
    Follow / unfollow, share

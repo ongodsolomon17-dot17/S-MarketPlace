@@ -5,49 +5,47 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Discover products from independent traders and shop securely at S-Market Place.">
   <title>S-Market Place | Multi Trader Marketplace</title>
-  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="css/style.css">
+  <link rel="stylesheet" href="css/trader-responsive.css">
 
   <!-- config.js says where the backend lives. The other files are loaded in this order on purpose:
        each one only uses things defined in the files above it. -->
-  <script src="/js/config.js"></script>
-  <script src="/js/utils.js" defer></script>
-  <script src="/js/api.js" defer></script>
-  <script src="/js/navigation.js" defer></script>
-  <script src="/js/cart.js" defer></script>
-  <script src="/js/products.js" defer></script>
-  <script src="/js/community.js" defer></script>
-  <script src="/js/deals.js" defer></script>
-  <script src="/js/wallet.js" defer></script>
-  <script src="/js/delivery.js" defer></script>
-  <script src="/js/admin.js" defer></script>
-  <script src="/js/auth.js" defer></script>
-  <script src="/js/seller.js" defer></script>
-  <script src="/js/orders.js" defer></script>
-  <script src="/js/main.js" defer></script>
+  <script src="js/config.js"></script>
+  <script src="js/utils.js" defer></script>
+  <script src="js/api.js" defer></script>
+  <script src="js/navigation.js" defer></script>
+  <script src="js/cart.js" defer></script>
+  <script src="js/products.js" defer></script>
+  <script src="js/community.js" defer></script>
+  <script src="js/deals.js" defer></script>
+  <script src="js/wallet.js" defer></script>
+  <script src="js/delivery.js" defer></script>
+  <script src="js/admin.js" defer></script>
+  <script src="js/auth.js" defer></script>
+  <script src="js/seller.js" defer></script>
+  <script src="js/orders.js" defer></script>
+  <script src="js/main.js" defer></script>
+  <script src="js/settings-fold.js" defer></script>
 </head>
 <body>
 <div class="background-img" aria-hidden="true">
     <video id="page-bg-video" autoplay muted loop playsinline preload="metadata" tabindex="-1">
-      <source src="/images/marketplace-background.mp4.mp4" type="video/mp4">
+      <source src="images/marketplace-background.mp4.mp4" type="video/mp4">
     </video>
   </div>
   <!-- ============================== HEADER ============================== -->
   <header class="site-header">
     <a class="brand" href="#home" data-page-link="home">
-      <span class="brand-mark"><img src="/images/Stechlogo.png" alt="S" height="40" width="40" style="border-radius: 50%;"></span>
+      <span class="brand-mark"><img src="images/Stechlogo.png" alt="S" height="40" width="40" style="border-radius: 50%;"></span>
       <span><strong style="color: var(--gold);">S-MARKET PLACE</strong><small>MULTI TRADER MARKETPLACE</small></span>
     </a>
     <div class="header-actions">
       <button class="icon-button" type="button" data-page-link="cart" aria-label="Open cart">
-        <img src="/icons/cart-added-amount-icon.png" alt="🛒" height="40" width="40">
+        <img src="icons/cart-added-amount-icon.png" alt="🛒" height="40" width="40">
         <span class="cart-count" id="cart-count">0</span>
       </button>
       <button class="subscription-crown-button" id="header-subscription-button" type="button" data-open-subscription aria-label="Subscription" title="Subscription" hidden>
-        <img src="/icons/subscription-crown.png" alt="">
-      </button>
-      <!-- Sign in for guests; add-item screen for traders; account screen for buyers (see auth.js) -->
-      <button class="account-header-button" id="header-account-button" type="button" aria-label="Account">
-        <img src="/icons/user.png" alt="👤" height="40" width="40">
+        <img src="icons/subscription-crown.png" alt="">
       </button>
     </div>
   </header>
@@ -87,9 +85,16 @@
         <div class="product-grid" id="market-products"><p class="muted">Finding products…</p></div>
         <div class="load-more-wrap"><button class="outline-button" id="load-more-button" type="button" hidden>Load more</button></div>
 
-        <div class="trader-search-block">
-          <div class="mini-heading"><h3>Find a trader's shop</h3><span>Open a store to see its products</span></div>
-          <div id="trader-results" class="trader-grid"><p class="muted">Loading traders…</p></div>
+        <!-- "Find a trader's shop": closed until tapped, then searchable -->
+        <div class="trader-search-block" id="trader-finder">
+          <button type="button" class="trader-finder-toggle" id="trader-finder-toggle" aria-expanded="false" aria-controls="trader-finder-panel">
+            <span class="trader-finder-copy"><strong>Find a trader’s shop</strong><small>Search shops and open one to see its products</small></span>
+            <span class="trader-finder-arrow" aria-hidden="true">▾</span>
+          </button>
+          <div id="trader-finder-panel" hidden>
+            <label class="list-search"><span aria-hidden="true">⌕</span><input id="trader-find-input" type="search" placeholder="Search by shop name or @username" autocomplete="off" aria-label="Search trader shops"></label>
+            <div id="trader-results" class="trader-grid"><p class="muted">Loading traders…</p></div>
+          </div>
         </div>
       </section>
 
@@ -121,7 +126,7 @@
       <h2 class="store-section-title">Products</h2>
       <div id="store-products" class="product-grid"></div>
       <section class="panel-list store-reviews" id="store-reviews" hidden>
-        <h2>Buyer reviews</h2>
+        <div class="reviews-head"><h2>Buyer reviews</h2><button type="button" class="reviews-close" data-close-reviews aria-label="Close reviews">×</button></div>
         <div id="store-reviews-list"></div>
       </section>
     </section>
@@ -143,7 +148,7 @@
           <div class="trader-profile-copy">
             <p class="trader-profile-name" id="trader-profile-name">Your account</p>
             <h1 id="dashboard-store-name">Your shop</h1>
-            <span class="verified-badge" id="dashboard-verified" hidden>✔ Verified trader</span>
+            <span class="verified-badge" id="dashboard-verified" hidden><img class="verified-icon" src="icons/verified.png" alt=""> Verified trader</span>
             <p class="trader-profile-handle" id="trader-profile-handle"></p>
           </div>
           <button class="outline-button trader-settings-button" type="button" data-page-link="settings" aria-label="Settings" title="Settings">
@@ -257,6 +262,23 @@
           <span class="category-count" data-tile-count="fulfilled" hidden></span>
         </button>
       </div>
+      <!-- Buyer chat: the trader chooses the built-in chat or their own chat link -->
+      <section class="panel-list management-panel chat-settings" id="chat-settings-panel" aria-labelledby="chat-settings-title">
+        <div class="panel-title-row"><h2 id="chat-settings-title">Buyer chat</h2></div>
+        <p class="panel-supporting-copy">Choose how buyers message you from your shop page.</p>
+        <fieldset class="chat-mode-options">
+          <legend class="sr-only">Chat option</legend>
+          <label class="chat-mode"><input type="radio" name="chat-mode" value="system" checked><span><strong>S-Market Place chat</strong><small>Built in and private to the marketplace.</small></span></label>
+          <label class="chat-mode"><input type="radio" name="chat-mode" value="external"><span><strong>My own chat software</strong><small>Buyers are sent to the link you paste, such as WhatsApp or Telegram.</small></span></label>
+        </fieldset>
+        <div class="chat-link-field" id="chat-link-field" hidden>
+          <label for="chat-url-input">Your chat link</label>
+          <input id="chat-url-input" type="url" inputmode="url" autocomplete="off" spellcheck="false" maxlength="300" placeholder="https://wa.me/234…  or  https://t.me/yourname">
+          <small class="chat-link-help">Only secure https:// links are accepted. Never put passwords, codes or private tokens in the link. Buyers see a warning before they leave the marketplace.</small>
+        </div>
+        <p class="chat-feedback" id="chat-feedback" role="status" aria-live="polite"></p>
+        <button type="button" class="primary-button" id="chat-save-button">Save chat setting</button>
+      </section>
       <button type="button" class="more-shop-link" data-open-my-store><span aria-hidden="true">◉</span>See my shop as buyers see it</button>
     </section>
 
@@ -365,22 +387,22 @@
         <div class="about-feature-grid">
           <article class="about-feature-card"><span class="about-feature-icon" aria-hidden="true">⌕</span><p class="eyebrow">FOR BUYERS</p><h3>Find products across shops</h3><p>Browse without an account, search by product or category, compare trader listings, and keep items in your cart. A buyer account is needed to place and manage an order.</p></article>
           <article class="about-feature-card"><span class="about-feature-icon" aria-hidden="true">▣</span><p class="eyebrow">FOR TRADERS</p><h3>Run your shop in one place</h3><p>Create a storefront, list and update products, manage stock, post time-limited Fast Finger deals, and follow paid orders through fulfilment.</p></article>
-          <article class="about-feature-card"><span class="about-feature-icon" aria-hidden="true">↗</span><p class="eyebrow">FOR EVERY ORDER</p><h3>Clear payment and delivery steps</h3><p>Paystack processes checkout. Order records show payment and delivery progress, and buyers can confirm receipt or report a problem through the order flow.</p></article>
+          <article class="about-feature-card"><span class="about-feature-icon" aria-hidden="true">↗</span><p class="eyebrow">FOR EVERY ORDER</p><h3>Clear payment and delivery steps</h3><p>Checkout is handled securely. Order records show payment and delivery progress, and buyers can confirm receipt or report a problem through the order flow.</p></article>
         </div>
       </section>
 
       <section class="about-process-grid" aria-label="Marketplace process">
         <article class="about-process-card"><span>01</span><div><h3>Discover</h3><p>Search the marketplace, explore categories, or open a trader’s shop to see its products.</p></div></article>
-        <article class="about-process-card"><span>02</span><div><h3>Place an order</h3><p>Review your cart and complete checkout through Paystack. Your order is then available in your account.</p></div></article>
+        <article class="about-process-card"><span>02</span><div><h3>Place an order</h3><p>Review your cart and complete checkout securely. Your order is then available in your account.</p></div></article>
         <article class="about-process-card"><span>03</span><div><h3>Confirm delivery</h3><p>Follow delivery updates. Confirm receipt when your order arrives, or report a problem through the order dispute flow.</p></div></article>
       </section>
 
       <section class="about-trust-section" aria-labelledby="about-trust-title">
         <div><p class="eyebrow">PAYMENTS &amp; ACCOUNT SAFETY</p><h2 id="about-trust-title">Know what happens after checkout.</h2></div>
         <div class="about-trust-copy">
-          <p>Checkout payments are handled by Paystack. For eligible orders, seller proceeds are held until delivery is confirmed or a reported issue is reviewed. Traders can see their balance breakdown and request an available payout to their saved bank account.</p>
-          <p>Accounts use sign-in credentials and role-based access for buyer, trader, and admin actions. Admins can enable authenticator-code sign-in checks. Keep your password and verification codes private, and complete purchases through the marketplace checkout.</p>
-          <p>Traders can view and edit existing products after their trial or paid access ends. Adding products and marked Pro tools require an active trial or subscription. Current plan choices and prices appear in the trader account centre.</p>
+          <p>Checkout payments are processed securely. For eligible orders, seller proceeds are held until delivery is confirmed or a reported issue is reviewed. Traders can see their balance breakdown and request a payout to their saved bank account.</p>
+          <p>Keep your password and any verification codes private, and complete purchases only through the marketplace checkout.</p>
+          <p>Plan choices and prices for traders appear in the trader account centre.</p>
         </div>
       </section>
 
