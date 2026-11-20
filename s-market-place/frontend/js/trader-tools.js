@@ -175,7 +175,7 @@ function askNewPin(title = "Set your PIN") {
 
 /** Before a sensitive change: "" if the trader has no PIN yet, the PIN if they do, null if they cancel. */
 async function requirePin(message) {
-  await loadPinInfo();
+  await loadPinInfo(true);   // always ask the server: the PIN may have been set or removed on another device
   if (!pinInfo.has_pin) return "";
   return askPin(message || "Enter your PIN to confirm this change.");
 }
