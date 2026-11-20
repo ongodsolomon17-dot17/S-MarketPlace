@@ -12,6 +12,7 @@ import escrow_service
 from auth import current_user, require_role
 from database import db
 from helpers import int_arg, iso
+from routes.trader_tools import public_chat_settings
 
 bp = Blueprint('community', __name__)
 
@@ -47,6 +48,7 @@ def shop_profile(username):
         stats = _stats(con, trader['id'])
         following = bool(me and con.execute('SELECT 1 FROM follows WHERE follower_id=%s AND trader_id=%s',
                                             (me['id'], trader['id'])).fetchone())
+        chat_mode, chat_url = public_chat_settings(con, trader['id'])
     return jsonify(shop={
         'username': trader['username'],
         'store_name': trader['store_name'] or f"{trader['first_name']} {trader['last_name']}",
@@ -59,6 +61,7 @@ def shop_profile(username):
         'rating_count': stats['rating_count'],
         'following': following,
         'is_mine': bool(me and me['id'] == trader['id']),
+        'chat_mode': chat_mode, 'chat_url': chat_url,
     })
 
 

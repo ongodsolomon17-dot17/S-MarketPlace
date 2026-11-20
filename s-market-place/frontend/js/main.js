@@ -145,7 +145,7 @@ document.addEventListener("click", async event => {
   if (closest("[data-close-qr]")) { closeDeliveryQR(); return; }
   if (closest("[data-qr-share]")) { await shareDeliveryQR(); return; }
   if (closest("[data-qr-download]")) { await downloadDeliveryQR(); return; }
-  if (closest("[data-qr-regenerate]")) { if (confirm("Make a new code? The old QR will stop working.")) await openDeliveryQR(qrState.itemId, true); return; }
+  if (closest("[data-qr-regenerate]")) { if (await confirmDanger({ title: "Make a new code?", message: "The old QR will stop working.", tone: "warn" })) await openDeliveryQR(qrState.itemId, true); return; }
 
   /* ---- money and notifications ---- */
   if (closest("[data-request-payout]")) { await requestPayout(); return; }

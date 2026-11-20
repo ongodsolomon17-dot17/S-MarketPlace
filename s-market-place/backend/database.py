@@ -301,6 +301,27 @@ SCHEMA = [
         comment TEXT NOT NULL DEFAULT '',
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())""",
     "CREATE INDEX IF NOT EXISTS idx_trader_ratings_trader ON trader_ratings(trader_id, id DESC)",
+    # Trader security PIN: only a salted, server-peppered hash is stored, never the PIN itself.
+    """CREATE TABLE IF NOT EXISTS trader_pins (
+        trader_id BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+        pin_hash TEXT NOT NULL,
+        failed_attempts INTEGER NOT NULL DEFAULT 0,
+        locked_until TIMESTAMPTZ,
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())""",
+    # How buyers reach a trader: the built-in chat, or the trader's own chat link.
+    """CREATE TABLE IF NOT EXISTS trader_chat_settings (
+        trader_id BIGINT PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+        mode VARCHAR(10) NOT NULL DEFAULT 'system' CHECK (mode IN ('system','external')),
+        url TEXT NOT NULL DEFAULT '',
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW())""",
+    # Short one-way notes from a trader to the buyer of an order line (the buyer cannot reply).
+    """CREATE TABLE IF NOT EXISTS order_item_messages (
+        id BIGSERIAL PRIMARY KEY,
+        order_item_id BIGINT NOT NULL REFERENCES order_items(id) ON DELETE CASCADE,
+        trader_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        body VARCHAR(200) NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW())""",
+    "CREATE INDEX IF NOT EXISTS idx_order_item_messages_item ON order_item_messages(order_item_id, id)",
 ]
 
 _schema_ready = False

@@ -186,7 +186,7 @@ async function markDealSold(id) {
 
 /** Delete a deal right away. */
 async function deleteDeal(id) {
-  if (!confirm("Delete this deal?")) return;
+  if (!(await confirmDanger({ title: "Delete this deal?", message: "Buyers will no longer be able to buy it." }))) return;
   try {
     const result = await apiRequest(`/api/trader/deals/${id}`, { method: "DELETE" });
     showToast(result.message);

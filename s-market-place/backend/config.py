@@ -55,6 +55,13 @@ if len(SECRET_KEY) < 32:
         # Refuse to start rather than run with a guessable key that would let anyone forge logins.
         raise RuntimeError('SECRET_KEY must be set to a random string of at least 32 characters.')
 
+# A server-only secret mixed into trader PINs, so a stolen database alone cannot be used to guess 4-digit PINs offline.
+# Set PIN_PEPPER on Render to its own random string (changing it later makes every saved PIN stop working).
+PIN_PEPPER = os.environ.get('PIN_PEPPER', '') or SECRET_KEY
+
+# Optional: only allow trader chat links on these websites (comma separated, e.g. wa.me,t.me). Empty = any public https site.
+CHAT_ALLOWED_HOSTS = [h.strip().lower() for h in os.environ.get('CHAT_ALLOWED_HOSTS', '').split(',') if h.strip()]
+
 # ----------------------------------------------------------------- CORS (which website may call this API)
 ORIGINS = [o.strip().rstrip('/') for o in os.environ.get('FRONTEND_ORIGIN', '').split(',') if o.strip()]
 if not ORIGINS:

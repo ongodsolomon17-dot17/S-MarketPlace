@@ -9,4 +9,4 @@ window.SMP_API_BASE_URL = (["localhost", "127.0.0.1"].includes(window.location.h
    Leave it empty ("") and the buttons say "Coming soon".
    When set, Message opens   <your chat address>?with=<trader username>&from=<your username>
    and the trader's Messages button opens   <your chat address>. Your chat app reads those two values. */
-window.SMP_CHAT_URL = "https://s-chat-zeta.vercel.app/";
+window.SMP_CHAT_URL = "";

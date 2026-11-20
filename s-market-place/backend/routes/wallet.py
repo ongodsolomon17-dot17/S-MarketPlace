@@ -6,9 +6,12 @@ from flask import Blueprint, current_app, g, jsonify, request
 import config
 import escrow_service
 import payment_service
+from decimal import ROUND_CEILING, Decimal, InvalidOperation
+
 from auth import require_login, require_role
 from database import db
 from helpers import TOO_MANY_MESSAGE, iso, too_many_requests
+from routes.trader_tools import check_pin
 
 bp = Blueprint('wallet', __name__)
 
@@ -54,6 +57,10 @@ def save_payout_account():
     if not config.PAYSTACK_SECRET_KEY:
         return jsonify(error='Bank details cannot be added yet because payments are not set up.'), 503
     data = request.get_json(silent=True) or {}
+    with db() as con:                                   # a trader with a PIN must enter it before the bank details change
+        err = check_pin(con, g.user['id'], data.get('pin'))
+        if err:
+            return err
     bank_code, number = str(data.get('bank_code', '')).strip(), str(data.get('account_number', '')).strip()
     if not (number.isdigit() and len(number) == 10):
         return jsonify(error='A Nigerian account number has exactly 10 digits.'), 400
@@ -120,12 +127,22 @@ def earnings():
                  for row in history])
 
 
+PAYOUT_MIN_SHARE = Decimal('0.40')      # a payout must be at least 40% of the available balance
+
+
 @bp.post('/api/trader/payouts')
 @require_role('trader')
 def request_payout():
-    """Ask for the whole available balance to be paid to the saved bank account."""
+    """Ask for part of the available balance (at least 40% of it) to be paid to the saved bank account.
+
+    The body may hold {"amount": 7500.00, "pin": "1234"}. Without an amount the whole available balance is requested.
+    """
+    data = request.get_json(silent=True) or {}
     with db() as con:
         con.execute('SELECT id FROM users WHERE id=%s FOR UPDATE', (g.user['id'],))       # one request at a time per trader
+        err = check_pin(con, g.user['id'], data.get('pin'))
+        if err:
+            return err
         account = con.execute('SELECT bank_name, account_number, account_name FROM payout_accounts WHERE trader_id=%s',
                               (g.user['id'],)).fetchone()
         if not account:
@@ -133,14 +150,27 @@ def request_payout():
         balances = escrow_service.trader_balances(con, g.user['id'])
         if balances['requested'] > 0:
             return jsonify(error='You already have a payout waiting to be paid.'), 409
-        if balances['available'] < config.MIN_PAYOUT:
+        available = balances['available']
+        if available < config.MIN_PAYOUT:
             return jsonify(error=f'The minimum payout is {escrow_service.naira(config.MIN_PAYOUT)}.'), 400
+        if data.get('amount') in (None, ''):
+            amount = available
+        else:
+            try:
+                amount = Decimal(str(data['amount'])).quantize(Decimal('0.01'))
+            except (InvalidOperation, ValueError):
+                return jsonify(error='Enter a valid payout amount.'), 400
+        smallest = min(available, max((available * PAYOUT_MIN_SHARE).quantize(Decimal('0.01'), rounding=ROUND_CEILING), config.MIN_PAYOUT))
+        if amount > available:
+            return jsonify(error='You cannot request more than your available balance.'), 400
+        if amount < smallest:
+            return jsonify(error=f'The smallest payout is {escrow_service.naira(smallest)} (40% of your available balance).'), 400
         payout = con.execute(
             'INSERT INTO payouts(trader_id, amount, bank_name, account_number, account_name) VALUES(%s,%s,%s,%s,%s) RETURNING id',
-            (g.user['id'], balances['available'], account['bank_name'], account['account_number'], account['account_name'])).fetchone()
+            (g.user['id'], amount, account['bank_name'], account['account_number'], account['account_name'])).fetchone()
         escrow_service.notify_admins(con, 'Payout requested',
-                                     f"{g.user['store_name'] or g.user['username']} asked for {escrow_service.naira(balances['available'])}.", 'admin')
-    return jsonify(message=f"Payout of {escrow_service.naira(balances['available'])} requested. It will be sent to {account['account_name']}.",
+                                     f"{g.user['store_name'] or g.user['username']} asked for {escrow_service.naira(amount)}.", 'admin')
+    return jsonify(message=f"Payout of {escrow_service.naira(amount)} requested. It will be sent to {account['account_name']}.",
                    payout_id=payout['id'])
 
 

@@ -311,6 +311,7 @@ function renderSettings() {
       <button class="text-button" type="button" data-logout>Log out</button>
     </div>`;
   if (trader) initPayoutAccountForm();                    // load the bank list and the saved account
+  if (trader) initPinSection();                           // Security PIN card (see trader-tools.js)
   document.getElementById("profile-edit-form").addEventListener("submit", saveProfile);
   document.getElementById("password-form").addEventListener("submit", changePassword);
 }
@@ -346,14 +347,15 @@ async function changePassword(event) {
   event.preventDefault();
   const form = event.currentTarget;   // read it now: it is gone after the first `await`
   const feedback = document.getElementById("password-feedback");
+  const sure = await confirmDanger({ title: "Change your password?", message: "You will use the new password the next time you log in." });
+  if (!sure) return;
+  const traderAccount = currentUser && currentUser.role === "trader";
+  const pin = traderAccount ? await requirePin("Enter your PIN to change your password.") : "";
+  if (pin === null) return;
   try {
-    const result = await apiRequest("/api/profile/password", {
-      method: "POST",
-      body: JSON.stringify({
-        current_password: document.getElementById("current-password").value,
-        new_password: document.getElementById("new-password").value
-      })
-    });
+    const payload = { current_password: document.getElementById("current-password").value, new_password: document.getElementById("new-password").value };
+    if (pin) payload.pin = pin;
+    const result = await apiRequest("/api/profile/password", { method: "POST", body: JSON.stringify(payload) });
     localStorage.setItem(TOKEN_KEY, result.token);
     form.reset();
     feedback.textContent = result.message;

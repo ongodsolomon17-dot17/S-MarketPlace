@@ -247,6 +247,9 @@ def my_sales():
         rows = con.execute("""SELECT oi.id AS item_id, oi.order_id, oi.product_id, oi.deal_id, oi.product_name, oi.quantity, oi.unit_price, oi.fulfilment_status,
                   oi.escrow_status, oi.seller_amount, (oi.delivery_code IS NOT NULL) AS has_code,
                   (oi.code_scanned_at IS NOT NULL) AS scanned,
+                  (SELECT p.image FROM products p WHERE p.id = oi.product_id) AS product_image,
+                  COALESCE((SELECT json_agg(json_build_object('text', m.body, 'created_at', m.created_at) ORDER BY m.id)
+                            FROM order_item_messages m WHERE m.order_item_id = oi.id), '[]'::json) AS trader_messages,
                   o.paid_at, o.shipping_name, o.shipping_phone, o.shipping_address, o.shipping_city, o.shipping_state
                FROM order_items oi JOIN orders o ON o.id = oi.order_id
                WHERE oi.trader_id = %s AND o.status = 'Paid' ORDER BY o.paid_at DESC, oi.id DESC LIMIT 200""",

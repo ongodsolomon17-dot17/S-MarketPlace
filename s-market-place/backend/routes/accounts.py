@@ -25,6 +25,7 @@ from auth import (
 from itsdangerous import BadSignature, SignatureExpired
 import mfa_service
 from database import db
+from routes.trader_tools import check_pin
 from helpers import TOO_MANY_MESSAGE, iso, too_many_requests
 
 bp = Blueprint('accounts', __name__)
@@ -553,6 +554,10 @@ def change_password():
     if not 8 <= len(new) <= 128:
         return jsonify(error='The new password must be between 8 and 128 characters.'), 400
     with db() as con:
+        if g.user['role'] == 'trader':                  # a trader with a PIN must enter it first
+            err = check_pin(con, g.user['id'], data.get('pin'))
+            if err:
+                return err
         row = con.execute('SELECT password_hash FROM users WHERE id=%s', (g.user['id'],)).fetchone()
         if not row or not check_password_hash(row['password_hash'], current):
             return jsonify(error='Your current password is incorrect.'), 400

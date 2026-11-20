@@ -68,7 +68,7 @@ function compactNaira(amount) {
   return `₦${Math.round(value).toLocaleString("en-NG")}`;
 }
 
-function renderWeeklySalesChart(days) {
+function renderWeeklySalesChart(days, rangeLabel = "") {
   const chart = document.getElementById("finance-weekly-chart");
   const summary = document.getElementById("finance-weekly-summary");
   if (!chart || !summary) return;
@@ -87,7 +87,7 @@ function renderWeeklySalesChart(days) {
     chart.setAttribute("aria-label", "Weekly sales chart is hidden while balance amounts are concealed.");
     return;
   }
-  summary.innerHTML = `<strong>${formatPrice(total)}</strong><span>from ${orderCount} paid ${orderCount === 1 ? "order" : "orders"}</span>`;
+  summary.innerHTML = `<strong>${formatPrice(total)}</strong><span>${rangeLabel ? `${escapeHTML(rangeLabel)} · ` : ""}from ${orderCount} paid ${orderCount === 1 ? "order" : "orders"}</span>`;
 
   const width = 760, height = 270, left = 72, right = 16, top = 18, bottom = 44;
   const plotWidth = width - left - right, plotHeight = height - top - bottom;
@@ -113,7 +113,7 @@ function renderWeeklySalesChart(days) {
     return `<g class="finance-chart-bar"><title>${label} ${date}: ${escapeHTML(formatPrice(amount))} from ${Number(day.orders) || 0} paid ${(Number(day.orders) || 0) === 1 ? "order" : "orders"}</title><rect x="${x}" y="${y}" width="${barWidth}" height="${barHeight}" rx="${Math.min(12, barWidth / 3)}"/><text x="${x + barWidth / 2}" y="${height - 13}" text-anchor="middle">${label}</text></g>`;
   }).join("");
   chart.innerHTML = `<svg viewBox="0 0 ${width} ${height}" preserveAspectRatio="xMidYMid meet" focusable="false" aria-hidden="true"><defs><linearGradient id="finance-bar-gradient" x1="0" x2="0" y1="0" y2="1"><stop offset="0%"/><stop offset="100%"/></linearGradient></defs>${guides}<line class="finance-chart-baseline" x1="${left}" y1="${top + plotHeight}" x2="${width - right}" y2="${top + plotHeight}"/>${bars}</svg>`;
-  chart.setAttribute("aria-label", `Sales for the last seven days total ${formatPrice(total)} from ${orderCount} paid orders.`);
+  chart.setAttribute("aria-label", `Sales this week total ${formatPrice(total)} from ${orderCount} paid orders.`);
 }
 
 async function loadEarnings() {
@@ -123,19 +123,19 @@ async function loadEarnings() {
     renderFinanceBalanceSelection();
     const selectedHint = document.getElementById("finance-selected-hint");
     if (selectedHint) selectedHint.textContent = FINANCE_BALANCE_CATEGORIES[selectedFinanceBalance].hint;
-    renderWeeklySalesChart(earnings.weekly_sales);
+    loadWeeklyChart(earnings.weekly_sales);
 
     // One short sentence about what to do next.
     let note;
     if (earnings.requested > 0) note = `A payout of ${formatPrice(earnings.requested)} is waiting to be sent to your bank account.`;
     else if (!earnings.has_account) note = "Add your bank details in Settings so you can get paid.";
     else if (earnings.available < earnings.min_payout) note = `You can request a payout once you have at least ${formatPrice(earnings.min_payout)} available.`;
-    else note = "You can withdraw your available balance to your bank account.";
+    else note = "You can request from 40% up to 100% of your available balance.";
     if (earnings.commission_percent > 0) note += ` S-Market Place keeps ${earnings.commission_percent}% of each sale; the amounts above are what you receive.`;
     document.getElementById("earnings-note").textContent = note;
 
     document.getElementById("earnings-actions").innerHTML =
-      `<button class="primary-button" type="button" data-request-payout ${earnings.can_request ? "" : "disabled"}>Request payout${earnings.can_request ? ` of ${formatPrice(earnings.available)}` : ""}</button>` +
+      `<button class="primary-button" type="button" data-request-payout ${earnings.can_request ? "" : "disabled"}>Request payout</button>` +
       '<button class="outline-button" type="button" data-page-link="settings">Payout account</button>';
 
     document.getElementById("payout-history").innerHTML = earnings.payouts.length
@@ -170,17 +170,6 @@ async function loadFinanceNotifications() {
 }
 
 /** Ask for the whole available balance to be sent to the saved bank account. */
-async function requestPayout() {
-  if (!confirm("Request a payout of your full available balance?")) return;
-  try {
-    const result = await apiRequest("/api/trader/payouts", { method: "POST", body: JSON.stringify({}) });
-    showToast(result.message);
-  } catch (error) {
-    showToast(error.message);
-  }
-  loadEarnings();
-}
-
 /* ----------------------------------------------------------------------------
    Payout account (inside Settings, for traders)
    ---------------------------------------------------------------------------- */
@@ -220,12 +209,15 @@ async function savePayoutAccount(event) {
   event.preventDefault();
   const form = event.currentTarget;
   const feedback = document.getElementById("payout-feedback");
+  const sure = await confirmDanger({ title: "Change your payout account?", message: "Your payouts will be sent to this bank account. Only continue if the details are yours and correct." });
+  if (!sure) return;
+  const pin = await requirePin("Enter your PIN to change your payout account.");
+  if (pin === null) return;
   feedback.textContent = "Checking the account with your bank…";
   try {
-    const result = await apiRequest("/api/trader/payout-account", {
-      method: "POST",
-      body: JSON.stringify({ bank_code: document.getElementById("payout-bank").value, account_number: document.getElementById("payout-number").value.trim() })
-    });
+    const payload = { bank_code: document.getElementById("payout-bank").value, account_number: document.getElementById("payout-number").value.trim() };
+    if (pin) payload.pin = pin;
+    const result = await apiRequest("/api/trader/payout-account", { method: "POST", body: JSON.stringify(payload) });
     feedback.textContent = result.message;
     document.getElementById("payout-current").textContent = `Saved: ${result.account.account_name} · ${result.account.bank_name} · ${maskAccount(result.account.account_number)}`;
     form.reset();

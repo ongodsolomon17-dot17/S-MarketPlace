@@ -461,3 +461,98 @@ body.trader-layout .trader-card { align-items: stretch; justify-items: stretch; 
 body.trader-layout .trader-card-top { justify-content: flex-start; text-align: left; }
 body.trader-layout .trader-card-copy { flex: 1; text-align: left; }
 body.trader-layout .trader-card .trader-avatar { margin: 0; }
+
+/* ============================================================================
+   v5: pop-ups · PIN · payout request · weekly history · people lists ·
+       order status + messages · desktop account row
+   ============================================================================ */
+body.modal-open { overflow: hidden; }
+.ui-modal[hidden] { display: none; }
+.ui-modal { position: fixed; inset: 0; z-index: 700; display: grid; place-items: center; padding: 16px; }
+.ui-modal-backdrop { position: absolute; inset: 0; background: rgba(3, 6, 20, .66); }
+.ui-modal-card { position: relative; width: min(100%, 420px); max-height: 92dvh; overflow-y: auto; padding: 22px 20px 18px; border: 1px solid var(--tl-line); border-radius: 22px; color: var(--tl-ink); background: var(--tl-surface); box-shadow: 0 24px 60px rgba(0, 0, 0, .45); text-align: center; animation: sheet-in .18s ease-out both; }
+.ui-icon { display: grid; place-items: center; width: 52px; height: 52px; margin: 0 auto 10px; border-radius: 50%; color: var(--tl-blue-bright); background: var(--tl-soft); font: 700 22px 'Fraunces', Georgia, serif; }
+.ui-icon.danger { color: #fff; background: var(--tl-red); }
+.ui-icon.warn { color: #7a4b00; background: #fdecc8; }
+.ui-modal-card h2 { margin: 0 0 8px; font: 700 21px/1.2 'Fraunces', Georgia, serif; }
+.ui-message { margin: 0 0 16px; color: var(--tl-muted); font-size: 14px; line-height: 1.55; }
+.ui-message strong { color: var(--tl-ink); }
+.ui-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 14px; }
+.ui-actions:has(> :only-child) { grid-template-columns: 1fr; }
+.ui-actions .outline-button, .ui-actions .primary-button { min-height: 48px; margin: 0; }
+.primary-button.is-danger { background: var(--tl-red); }
+.is-danger-outline { border-color: var(--tl-red) !important; color: var(--tl-red) !important; }
+.ui-error { min-height: 0; margin: 8px 0 0; color: var(--tl-red); font-size: 13px; font-weight: 600; }
+.ui-error:empty { display: none; }
+@media (max-width: 480px) { .ui-modal { align-items: end; padding: 0; } .ui-modal-card { width: 100%; border-radius: 22px 22px 0 0; padding-bottom: calc(18px + env(safe-area-inset-bottom)); } }
+
+/* PIN boxes */
+.pin-label { margin: 8px 0 4px; color: var(--tl-muted); font-size: 12px; font-weight: 600; text-align: left; }
+.pin-row { display: flex; justify-content: center; gap: 10px; margin: 6px 0; }
+.pin-box { width: 52px; height: 58px; padding: 0; border: 1.5px solid var(--tl-line); border-radius: 14px; color: var(--tl-ink); background: var(--tl-soft); font: 700 24px 'DM Sans', system-ui, sans-serif; text-align: center; }
+.pin-box:focus { border-color: var(--tl-blue-bright); outline: 0; box-shadow: 0 0 0 3px rgba(23, 115, 238, .25); }
+.pin-actions { display: flex; flex-wrap: wrap; gap: 10px; }
+
+/* payout dialog */
+.payout-label { display: block; margin: 4px 0 6px; color: var(--tl-muted); font-size: 12px; font-weight: 600; text-align: left; }
+.payout-amount { width: 100%; padding: 12px; border: 1.5px solid var(--tl-line); border-radius: 12px; color: var(--tl-ink); background: var(--tl-soft); font: 700 22px 'Fraunces', Georgia, serif; text-align: center; }
+.payout-range { width: 100%; margin: 14px 0 6px; accent-color: var(--tl-blue-bright); }
+.payout-presets { display: flex; justify-content: center; flex-wrap: wrap; gap: 8px; }
+.payout-presets .chip { min-width: 62px; }
+
+/* weekly sales footer + history */
+body.trader-layout .finance-card-foot { display: flex; justify-content: flex-end; margin-top: 8px; }
+body.trader-layout .finance-card-foot .text-button { padding: 8px 4px; font-weight: 700; }
+.week-list { display: grid; gap: 12px; }
+.week-row { padding: 14px; border: 1px solid var(--tl-line); border-radius: 16px; background: var(--tl-surface); }
+.week-top { display: flex; justify-content: space-between; gap: 10px; font-size: 15px; }
+.week-top span { font: 700 16px 'Fraunces', Georgia, serif; }
+.week-meta { margin: 2px 0 10px; color: var(--tl-muted); font-size: 12.5px; }
+.week-bars { display: grid; grid-template-columns: repeat(7, 1fr); align-items: end; gap: 6px; height: 74px; }
+.week-bar { position: relative; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; height: 100%; }
+.week-bar i { display: block; width: 100%; max-width: 26px; border-radius: 6px 6px 2px 2px; background: linear-gradient(var(--tl-blue-bright), var(--tl-blue)); }
+.week-bar b { margin-top: 3px; color: var(--tl-muted); font-size: 10px; font-weight: 600; }
+
+/* followers / following */
+.person-list { display: grid; gap: 8px; margin: 10px 0 0; padding: 0; list-style: none; }
+.person-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--tl-line); border-radius: 14px; background: var(--tl-surface); }
+.person-row[hidden] { display: none; }
+.person-row .trader-avatar { width: 44px; height: 44px; font-size: 17px; }
+.person-copy { flex: 1; min-width: 0; display: grid; gap: 1px; }
+.person-copy strong { font-size: 14px; overflow-wrap: anywhere; }
+.person-copy small { color: var(--tl-muted); font-size: 12px; }
+.person-row .outline-button { flex: none; min-height: 36px; padding: 6px 12px; font-size: 13px; }
+body.trader-layout .community-preview { cursor: pointer; }
+
+/* order cards: message icon + status control + messages */
+body.trader-layout .ticket-actions { display: flex; align-items: center; gap: 8px; }
+body.trader-layout .ticket-actions .primary-button, body.trader-layout .ticket-actions .badge { flex: 1 1 auto; }
+body.trader-layout .ticket-actions .outline-button { flex: 0 0 auto; }
+body.trader-layout .ticket-actions:not(:has(.primary-button, .badge)) .outline-button { flex: 1 1 auto; }
+.icon-action { flex: none; display: grid; place-items: center; width: 46px; height: 46px; border: 1px solid var(--tl-line); border-radius: 12px; color: var(--tl-blue-bright); background: var(--tl-soft); font-size: 18px; cursor: pointer; }
+.icon-action:hover { border-color: var(--tl-blue-bright); }
+.sheet-two .sheet-wide { grid-column: 1 / -1; }
+.status-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; }
+.status-row select { min-height: 46px; width: 100%; padding: 0 12px; border: 1px solid var(--tl-line); border-radius: 12px; color: var(--tl-ink); background: var(--tl-soft); font: inherit; font-size: 14px; }
+.status-row .outline-button { min-height: 46px; margin: 0; }
+.sent-messages { display: grid; gap: 6px; margin: 0 0 12px; padding: 0; list-style: none; text-align: left; }
+.sent-messages li { padding: 8px 12px; border-radius: 12px; color: var(--tl-ink); background: var(--tl-soft); font-size: 13px; }
+.sent-messages small { display: block; margin-top: 2px; color: var(--tl-muted); font-size: 11px; }
+.order-message-text { width: 100%; padding: 12px; border: 1px solid var(--tl-line); border-radius: 12px; color: var(--tl-ink); background: var(--tl-soft); font: inherit; font-size: 14px; resize: none; }
+.char-count { margin: 4px 0 0; color: var(--tl-muted); font-size: 12px; text-align: right; }
+/* what the buyer sees on My orders */
+.trader-note { margin: 8px 0 0; padding: 10px 12px; border-left: 3px solid var(--tl-blue-bright); border-radius: 10px; color: var(--tl-ink); background: var(--tl-soft); font-size: 13px; }
+.trader-note p { margin: 4px 0 0; }
+.trader-note small { color: var(--tl-muted); }
+
+/* desktop: profile card and Add / Finance / More share one row, products sit below */
+@media (min-width: 900px) {
+  body.trader-layout .page-panel.trader-center:not([hidden]) { grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); column-gap: 20px; row-gap: 20px; align-items: stretch; }
+  body.trader-layout .trader-center > .trader-center-intro { grid-column: 1; grid-row: 1; position: static; }
+  body.trader-layout .trader-center > .trader-shortcuts { grid-column: 2; grid-row: 1; margin: 0; align-items: stretch; }
+  body.trader-layout .trader-center > .trader-shortcuts .trader-shortcut { justify-content: center; min-height: 0; height: 100%; }
+  body.trader-layout .trader-center > .dashboard-products-panel { grid-column: 1 / -1; grid-row: 2; margin-top: 0; }
+  body.trader-layout #trader-own-products { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+}
+
+body.trader-layout .trader-center-intro > p:not(.eyebrow) { display: none; }

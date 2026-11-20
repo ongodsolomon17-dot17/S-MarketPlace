@@ -160,6 +160,7 @@ function orderCardHTML(order) {
       <div class="order-item-row"><span>${escapeHTML(item.name)} × ${item.quantity} <small>· ${escapeHTML(item.store_name)}</small></span>
         <span>${order.status === "Paid" ? `<span class="badge">${escapeHTML(FULFILMENT[item.fulfilment_status] || item.fulfilment_status)}</span> ` : ""}${formatPrice(item.unit_price * item.quantity)}</span></div>
       ${escrowHTML(order, item)}
+      ${Array.isArray(item.trader_messages) && item.trader_messages.length ? `<div class="trader-note"><strong>Message from ${escapeHTML(item.store_name)}</strong>${item.trader_messages.map(note => `<p>${escapeHTML(note.text)} <small>${escapeHTML(formatDate(note.created_at))}</small></p>`).join("")}<small class="muted">You cannot reply to this message.</small></div>` : ""}
     </li>`;
   }).join("");
   return `

@@ -300,7 +300,7 @@ async function startTraderSubscriptionCheckout() {
     ? "You’ll be sent to Paystack to pay for this plan. It will renew automatically until you turn auto-renew off. Continue?"
     : "You’ll be sent to Paystack to pay for this plan. Continue?";
 
-  if (!confirm(confirmation)) return;
+  if (!(await confirmDanger({ title: "Continue to payment?", message: confirmation, tone: "warn" }))) return;
 
   button.disabled = true;
 
@@ -323,7 +323,7 @@ async function startTraderSubscriptionCheckout() {
 async function disableTraderSubscriptionAutoRenew() {
   const button = document.querySelector("[data-subscription-renewal-off]");
 
-  if (!confirm("Turn off auto-renew? Your paid access will continue until its end date.")) {
+  if (!(await confirmDanger({ title: "Turn off auto-renew?", message: "Your paid access will continue until its end date.", tone: "warn" }))) {
     return;
   }
 
@@ -713,7 +713,7 @@ async function togglePauseEditing() {
 /** Delete the product being edited. It is hidden at once and erased for good after 30 days (restorable until then). */
 async function deleteEditingProduct() {
   if (!editingProductId) return;
-  if (!confirm("Delete this product?\n\nIt disappears from your shop now and is erased for good, with its picture, in 30 days. You can restore it until then.")) return;
+  if (!(await confirmDanger({ title: "Delete this product?", message: "It disappears from your shop now and is erased for good, with its picture, in 30 days. You can restore it until then.", confirmLabel: "Continue" }))) return;
   try {
     const result = await apiRequest(`/api/trader/products/${editingProductId}`, { method: "DELETE" });
     closeProductEditor();
@@ -806,7 +806,7 @@ function orderLineHTML(line, fulfilled) {
           </div>
         </div>
         <p class="ticket-meta">${place ? `<span>📍 ${escapeHTML(place)}</span>` : ""}<span class="${late ? "late" : ""}">${escapeHTML(paidAgoText(line.paid_at))}</span></p>
-        <div class="ticket-actions">${fulfilled ? "" : orderPrimaryHTML(line, false)}<button type="button" class="outline-button" data-order-details="${line.item_id}">Details</button></div>
+        <div class="ticket-actions">${fulfilled ? "" : orderPrimaryHTML(line, false)}<button type="button" class="icon-action" data-order-message="${line.item_id}" aria-label="Message the buyer" title="Message the buyer">💬</button><button type="button" class="outline-button" data-order-details="${line.item_id}">Details</button></div>
       </article>`;
 }
 
@@ -956,6 +956,11 @@ async function saveChatSettings() {
     if (!check.ok) { setChatFeedback(check.error, true); return; }
     payload.url = check.url;
   }
+  const sure = await confirmDanger({ title: "Change your buyer chat?", message: mode === "external" ? "Buyers who tap Message on your shop will be sent to this link. Only continue if the link is yours." : "Buyers will use the built-in S-Market Place chat.", tone: "warn" });
+  if (!sure) return;
+  const pin = await requirePin("Enter your PIN to change your buyer chat.");
+  if (pin === null) return;
+  if (pin) payload.pin = pin;
   const button = document.getElementById("chat-save-button");
   button.disabled = true;
   try {
@@ -1015,8 +1020,19 @@ function orderSheetHTML(line) {
         <div class="sheet-two">
           ${telHref ? `<a class="outline-button" href="tel:${escapeHTML(telHref)}">📞 Call buyer</a>` : ""}
           <button type="button" class="outline-button" data-copy-address="${escapeHTML(address)}">⧉ Copy address</button>
+          <button type="button" class="outline-button sheet-wide" data-order-message="${line.item_id}">💬 Message buyer · they can’t reply</button>
         </div>
       </section>
+      ${line.fulfilment_status === "Delivered" ? "" : `<section class="sheet-card"><h3>Order status</h3>
+        <div class="status-row">
+          <select id="order-status-select" aria-label="Order status">
+            <option value="Pending" ${line.fulfilment_status === "Pending" ? "selected" : ""} disabled>Waiting to be packed</option>
+            <option value="Processing" ${line.fulfilment_status === "Processing" ? "selected" : ""}>Packed · ready to ship</option>
+            <option value="Shipped" ${line.fulfilment_status === "Shipped" ? "selected" : ""}>Shipped</option>
+            <option value="Delivered">Delivered</option>
+          </select>
+          <button type="button" class="outline-button" data-order-status-save="${line.item_id}">Update</button>
+        </div></section>`}
       <section class="sheet-card"><h3>Payment</h3>
         <dl class="sheet-rows">
           <div><dt>Order total</dt><dd>${total}</dd></div>
@@ -1066,6 +1082,7 @@ function closeOrderSheet() {
 
 /** Move one order line forward (packed -> shipped -> delivered). */
 async function advanceOrderLine(id, status, button) {
+  if (status === "Delivered" && !(await confirmDanger({ title: "Mark as delivered?", message: "Only do this once the buyer has really received the package. Your payment is released after the buyer confirms.", tone: "warn" }))) return;
   if (button) button.disabled = true;
   try {
     const result = await apiRequest(`/api/trader/order-items/${id}`, { method: "PATCH", body: JSON.stringify({ fulfilment_status: status }) });
@@ -1094,6 +1111,15 @@ document.addEventListener("click", event => {
   if (!target.closest) return;
   const tab = target.closest("[data-order-tab]");
   if (tab) { ordersTab = tab.dataset.orderTab; renderTraderOrderLists(); return; }
+  const statusSave = target.closest("[data-order-status-save]");
+  if (statusSave) {
+    const id = Number(statusSave.dataset.orderStatusSave);
+    const line = traderOrderLines.find(item => item.item_id === id);
+    const status = document.getElementById("order-status-select")?.value;
+    if (!line || !status || status === "Pending" || status === line.fulfilment_status) { showToast("Choose a new status first."); return; }
+    advanceOrderLine(id, status, statusSave);
+    return;
+  }
   const advance = target.closest("[data-order-advance]");
   if (advance) { advanceOrderLine(Number(advance.dataset.orderAdvance), advance.dataset.nextStatus, advance); return; }
   if (target.closest("[data-order-sheet-close]")) { closeOrderSheet(); return; }

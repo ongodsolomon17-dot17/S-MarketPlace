@@ -73,11 +73,35 @@
   const ago = h => new Date(Date.now() - h * 3600000).toISOString();
   const BUYER_ORDERS = [
     { id: 5001, status: "Paid", total: 41000, created_at: ago(30), shipping_name: "Amaka Obi", shipping_address: "12 Ogui Road", shipping_city: "Enugu", shipping_state: "Enugu", expires_at: null,
-      items: [{ id: 9001, name: "Midnight Oud Eau de Parfum", quantity: 1, store_name: "Chidi Scents", fulfilment_status: "Shipped", unit_price: 28500, escrow_status: "held", scanned: false },
+      items: [{ id: 9001, name: "Midnight Oud Eau de Parfum", quantity: 1, store_name: "Chidi Scents", fulfilment_status: "Shipped", trader_messages: [{ text: "Your order is packed and leaves today.", created_at: ago(3) }], unit_price: 28500, escrow_status: "held", scanned: false },
               { id: 9002, name: "Glow Body Butter", quantity: 1, store_name: "Chidi Scents", fulfilment_status: "Processing", unit_price: 7500, escrow_status: "held", scanned: false }] },
     { id: 5002, status: "Awaiting payment", total: 12000, created_at: ago(2), shipping_name: "Amaka Obi", shipping_address: "12 Ogui Road", shipping_city: "Enugu", shipping_state: "Enugu", expires_at: ago(-20),
       items: [{ id: 9003, name: "Fresh Citrus Splash", quantity: 1, store_name: "Chidi Scents", fulfilment_status: "Pending", unit_price: 12000 }] }
   ];
+  const PIN = { value: null };          // preview only: the real server stores a HASH of the PIN and locks out repeated wrong tries
+  const checkPin = body => { if (PIN.value && String(body.pin || "") !== PIN.value) throw new Error("Incorrect PIN. Please try again."); };
+  const PEOPLE = [
+    { username: "amaka", name: "Amaka Obi", store_name: "", profile_image: "", is_verified: false, is_trader: false, since: ago(900) },
+    { username: "emeka", name: "Emeka Nwosu", store_name: "", profile_image: "", is_verified: false, is_trader: false, since: ago(600) },
+    { username: "ngozi", name: "Ngozi Eze", store_name: "Ngozi Beauty Hub", profile_image: "", is_verified: false, is_trader: true, since: ago(300) },
+    { username: "tunde", name: "Tunde Bello", store_name: "Tunde Essentials", profile_image: "", is_verified: true, is_trader: true, since: ago(100) }
+  ];
+  const weeklyHistory = () => {
+    const now = new Date(); const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - ((now.getDay() + 6) % 7));
+    const pattern = [12000, 28500, 9000, 41000, 16000, 33000, 22500];
+    const fmt = d => d.toLocaleDateString("en", { day: "numeric", month: "short" });
+    return Array.from({ length: 12 }, (_, w) => {
+      const start = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() - w * 7);
+      const days = Array.from({ length: 7 }, (_, i) => {
+        const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
+        const future = d > now;
+        const amount = future ? 0 : (w === 0 ? pattern[i] * 0.6 : pattern[(i + w) % 7]) | 0;
+        return { label: d.toLocaleDateString("en", { weekday: "short" }), date: d.toISOString().slice(0, 10), amount, orders: amount ? 1 + ((i + w) % 3) : 0 };
+      });
+      const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6);
+      return { start: start.toISOString().slice(0, 10), end: end.toISOString().slice(0, 10), label: `${fmt(start)} – ${fmt(end)}`, total: days.reduce((t, d) => t + d.amount, 0), orders: days.reduce((t, d) => t + d.orders, 0), days };
+    });
+  };
   const CHAT = { mode: "system", url: "" };   // preview only: the real backend stores this per trader
   const TRADER_ORDER_LINES = [
     { item_id: 9001, order_id: 5001, product_id: 1, deal_id: null, product_name: "Midnight Oud Eau de Parfum", quantity: 1, unit_price: 28500, seller_amount: 27000, paid_at: ago(30), fulfilment_status: "Shipped", escrow_status: "held", scanned: false, shipping_name: "Amaka Obi", shipping_phone: "08030000001", shipping_address: "12 Ogui Road", shipping_city: "Enugu", shipping_state: "Enugu" },
@@ -177,11 +201,38 @@
     if (path === "/api/trader/subscription") return SUBSCRIPTION;
     if (path === "/api/trader/chat-settings") {
       if (method === "PUT") {
+        checkPin(body);
         if (body.mode === "external") { if (!/^https:\/\/[^\s/]+\.[^\s/]+/.test(String(body.url || ""))) throw new Error("Enter a secure https:// chat link."); CHAT.mode = "external"; CHAT.url = body.url; }
         else { CHAT.mode = "system"; CHAT.url = ""; }
         return ok("Chat setting saved.");
       }
       return { mode: CHAT.mode, url: CHAT.url };
+    }
+    if (path === "/api/trader/pin") {
+      if (method === "GET") return { has_pin: Boolean(PIN.value) };
+      if (method === "DELETE") { checkPin(body); PIN.value = null; return ok("PIN removed."); }
+      if (PIN.value && String(body.current_pin || "") !== PIN.value) throw new Error("Your current PIN is incorrect.");
+      if (!/^\d{4}$/.test(String(body.pin || ""))) throw new Error("A PIN must be exactly 4 digits.");
+      PIN.value = String(body.pin); return ok(body.current_pin ? "PIN changed." : "PIN saved. It will now protect sensitive changes.");
+    }
+    if (path === "/api/trader/followers") return { people: PEOPLE };
+    if (path === "/api/trader/following") return { people: PEOPLE.filter(x => x.is_trader) };
+    if (path === "/api/trader/weekly-sales") return { weeks: weeklyHistory() };
+    if (path === "/api/trader/payouts" && method === "POST") {
+      checkPin(body);
+      const min = Math.max(Math.ceil(EARNINGS.available * 0.4), EARNINGS.min_payout);
+      if (!(body.amount >= min)) throw new Error("The smallest payout is 40% of your available balance.");
+      if (body.amount > EARNINGS.available) throw new Error("You cannot request more than your available balance.");
+      return ok("Payout requested. It will be sent to your bank account.");
+    }
+    if (path === "/api/trader/payout-account" && method === "POST") { checkPin(body); return { message: "Payout account saved.", account: { account_name: "CHIDI OKAFOR", account_number: "0123456789", bank_name: "Access Bank", bank_code: "044" } }; }
+    if (path === "/api/profile/password" && method === "POST") { checkPin(body); return { message: "Password changed.", token: "preview-token" }; }
+    m = path.match(/^\/api\/trader\/order-items\/(\d+)\/message$/);
+    if (m && method === "POST") {
+      const text = String(body.message || "").trim();
+      if (!text || text.length > 200) throw new Error("Messages must be 1 to 200 characters.");
+      const l = TRADER_ORDER_LINES.find(x => x.item_id === Number(m[1])); if (l) { l.trader_messages = (l.trader_messages || []).concat({ text, created_at: new Date().toISOString() }); }
+      return ok("Message sent. The buyer will see it on their order.");
     }
     m = path.match(/^\/api\/trader\/order-items\/(\d+)$/);
     if (m && method === "PATCH") { const l = TRADER_ORDER_LINES.find(x => x.item_id === Number(m[1])); if (l) l.fulfilment_status = body.fulfilment_status; return ok("Order updated."); }

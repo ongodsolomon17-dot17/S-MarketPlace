@@ -24,7 +24,7 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 import config
 from database import db, ensure_schema
-from routes import accounts, admin, community, deals, delivery, orders, seller, shop, wallet
+from routes import accounts, admin, community, deals, delivery, orders, seller, shop, trader_tools, wallet
 import maintenance
 
 def create_app():
@@ -36,12 +36,12 @@ def create_app():
     # Only the Vercel site(s) listed in FRONTEND_ORIGIN may call this API from a browser.
     CORS(app, origins=config.ORIGINS, supports_credentials=False,
          allow_headers=['Content-Type', 'Authorization', 'X-Visitor-Id'],
-         methods=['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'])
+         methods=['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'])
 
     cloudinary.config(cloud_name=os.environ.get('CLOUDINARY_CLOUD_NAME'), api_key=os.environ.get('CLOUDINARY_API_KEY'),
                       api_secret=os.environ.get('CLOUDINARY_API_SECRET'), secure=True)
 
-    for blueprint in (accounts.bp, shop.bp, orders.bp, seller.bp, deals.bp, delivery.bp, wallet.bp, community.bp, admin.bp):
+    for blueprint in (accounts.bp, shop.bp, orders.bp, seller.bp, deals.bp, delivery.bp, wallet.bp, community.bp, admin.bp, trader_tools.bp):
         app.register_blueprint(blueprint)
 
     register_hooks(app)
