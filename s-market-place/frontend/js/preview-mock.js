@@ -10,51 +10,6 @@
 (function () {
   "use strict";
 
-  /* ---- DEVELOPER PIN GATE (local workspace only) --------------------------------
-     No email, no login: this workspace asks for the developer PIN once and then
-     stays open for 12 hours on this computer. It is only a convenience for YOUR
-     machine. The PIN is written in this file, so it protects nothing if this file
-     is ever put online. Never deploy js/preview-mock.js (see README-DEV.md).
-     To lock again: run  localStorage.removeItem("smpDevUnlockUntil")  in the browser console. */
-  const REQUIRE_DEV_PIN = true;
-  const DEV_PIN = "222555";
-  const DEV_UNLOCK_KEY = "smpDevUnlockUntil";
-  (function devGate() {
-    if (!REQUIRE_DEV_PIN) return;
-    let until = 0;
-    try { until = Number(localStorage.getItem(DEV_UNLOCK_KEY)) || 0; } catch (_) {}
-    if (until > Date.now()) return;
-    const box = document.createElement("div");
-    box.setAttribute("role", "dialog");
-    box.setAttribute("aria-modal", "true");
-    box.setAttribute("aria-label", "Developer access");
-    box.style.cssText = "position:fixed;inset:0;z-index:2147483000;display:grid;place-items:center;padding:16px;background:#0b1126;font:15px/1.45 system-ui,sans-serif;color:#eaf0ff";
-    box.innerHTML = '<form style="width:min(100%,360px);padding:26px 22px;border:1px solid #243058;border-radius:22px;background:#141c3a;text-align:center">' +
-      '<div style="font-size:34px" aria-hidden="true">🔐</div>' +
-      '<h1 style="margin:8px 0 6px;font-size:22px">Developer access</h1>' +
-      '<p style="margin:0 0 16px;color:#9aa6cc;font-size:14px">S-Market Place workspace. Enter the admin PIN to open it. No email needed.</p>' +
-      '<input id="dev-pin" type="password" inputmode="numeric" autocomplete="off" maxlength="6" aria-label="Admin PIN" style="width:100%;padding:14px;border:1.5px solid #243058;border-radius:12px;background:#1b2650;color:#eaf0ff;font-size:26px;letter-spacing:.5em;text-align:center">' +
-      '<p id="dev-pin-error" role="alert" style="min-height:20px;margin:8px 0;color:#ff6b81;font-size:13px;font-weight:600"></p>' +
-      '<button type="submit" style="width:100%;min-height:48px;border:0;border-radius:12px;background:#2434b8;color:#fff;font-size:16px;font-weight:700;cursor:pointer">Open workspace</button></form>';
-    let wrong = 0, lockedUntil = 0;
-    box.querySelector("form").addEventListener("submit", event => {
-      event.preventDefault();
-      const input = box.querySelector("#dev-pin"), error = box.querySelector("#dev-pin-error");
-      if (Date.now() < lockedUntil) { error.textContent = "Too many tries. Wait a few seconds."; return; }
-      if (input.value === DEV_PIN) {
-        try { localStorage.setItem(DEV_UNLOCK_KEY, String(Date.now() + 12 * 3600 * 1000)); } catch (_) {}
-        box.remove();
-        return;
-      }
-      wrong += 1; input.value = "";
-      if (wrong >= 5) { wrong = 0; lockedUntil = Date.now() + 30000; error.textContent = "Too many tries. Wait 30 seconds."; }
-      else error.textContent = "That PIN is not correct.";
-      input.focus();
-    });
-    document.documentElement.appendChild(box);
-    box.querySelector("#dev-pin").focus();
-  })();
-
   const ROLE_KEY = "smpPreviewRole";
   const ROLES = ["guest", "buyer", "trader", "admin"];
   let role = "trader";
