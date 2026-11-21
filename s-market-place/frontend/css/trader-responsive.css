@@ -148,8 +148,35 @@ body.trader-layout .page-panel { animation: tl-in .22s ease-out both; }
    cards · settings fold toggles
    ============================================================================ */
 /* verified icon (icons/verified.png) */
-.verified-icon { width: 1.2em; height: 1.2em; vertical-align: -.22em; object-fit: contain; }
-.verified-badge .verified-icon { margin-right: 2px; }
+.verified-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 9999px;
+  background-color: #16a34a; /* or #22c55e to match your green pill */
+  color: #ffffff;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.verified-badge.compact {
+  padding: 3px;
+}
+
+.verified-icon {
+  width: 1.2em;
+  height: 1.2em;
+  vertical-align: -0.22em;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.verified-badge .verified-icon {
+  margin-right: 2px;
+  vertical-align: 0; /* flex centering handles alignment inside .verified-badge */
+}
 
 /* "Reviews" button on the buyer-facing shop (about 15vw wide, never tiny or huge) */
 body.trader-layout .store-reviews-button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; width: clamp(128px, 15vw, 190px); min-height: 40px; margin: 12px 0 0; padding: 0 12px; border: 1px solid var(--tl-blue-bright); border-radius: 12px; color: var(--tl-blue-bright); background: transparent; font: 700 13px/1 inherit; white-space: nowrap; cursor: pointer; }
