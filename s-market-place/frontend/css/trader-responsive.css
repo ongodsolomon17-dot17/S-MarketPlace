@@ -154,7 +154,7 @@ body.trader-layout .page-panel { animation: tl-in .22s ease-out both; }
   gap: 4px;
   padding: 3px 9px;
   border-radius: 9999px;
-  background-color: #16a34a; /* or #22c55e to match your green pill */
+  background-color: #7e2699; /* or #22c55e to match your green pill */
   color: #201524;
   font-size: 12px;
   font-weight: 600;
@@ -166,8 +166,8 @@ body.trader-layout .page-panel { animation: tl-in .22s ease-out both; }
 }
 
 .verified-icon {
-  width: 1.2em;
-  height: 1.2em;
+  width: 1.5em;
+  height: 1.5em;
   vertical-align: -0.22em;
   object-fit: contain;
   flex-shrink: 0;

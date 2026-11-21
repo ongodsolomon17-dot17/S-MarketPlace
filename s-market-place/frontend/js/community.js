@@ -13,7 +13,7 @@
    ---------------------------------------------------------------------------- */
 function verifiedBadgeHTML(isVerified, compact = false) {
   if (!isVerified) return "";
-  return `<span class="verified-badge${compact ? " compact" : ""}" title="Verified trader"><img class="verified-icon" src="/icons/badge.png" alt="" height="33" width="33"></span>`;
+  return `<span class="verified-badge${compact ? " compact" : ""}" title="Verified trader"><img class="verified-icon" src="/icons/badge.png" alt="" height="33" width="33">${compact ? "" : " Verified"}</span>`;
 }
 
 function starsText(value) {
