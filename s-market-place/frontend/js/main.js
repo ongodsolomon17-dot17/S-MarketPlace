@@ -300,4 +300,11 @@ window.addEventListener("pageshow", event => { if (event.persisted) window.locat
     window.history.replaceState({}, "", window.location.pathname);
     await openStore(sharedShop);
   }
+
+  // 5. A shared product link (…/?product=12), such as one tapped inside an S-Chat conversation, opens that product.
+  const sharedProduct = params.get("product");
+  if (sharedProduct && /^\d{1,10}$/.test(sharedProduct)) {
+    window.history.replaceState({}, "", window.location.pathname);
+    await openProduct(Number(sharedProduct));
+  }
 })();

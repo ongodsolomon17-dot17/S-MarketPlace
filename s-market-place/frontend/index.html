@@ -7,22 +7,23 @@
   <title>S-Market Place | Multi Trader Marketplace</title>
   <link rel="stylesheet" href="css/style.css">
   <link rel="stylesheet" href="css/trader-responsive.css">
+
   <link rel="icon" type="image/x-icon" href="images/favicon.ico">
 
-<link rel="icon"
-      type="image/png"
-      sizes="32x32"
-      href="images/favicon-32x32.png">
-
-<link rel="apple-touch-icon"
-      sizes="180x180"
-      href="images/apple-touch-icon.png">
+  <link rel="icon"
+        type="image/png"
+        sizes="32x32"
+        href="images/favicon-32x32.png">
+  <link rel="apple-touch-icon"
+        sizes="180x180"
+        href="images/apple-touch-icon.png">
 
   <!-- config.js says where the backend lives. The other files are loaded in this order on purpose:
        each one only uses things defined in the files above it. -->
   <script src="js/config.js"></script>
   <script src="js/utils.js" defer></script>
   <script src="js/api.js" defer></script>
+  <script src="js/preview-mock.js" defer></script> <!-- PREVIEW ONLY: delete this line before copying to your main project -->
   <script src="js/navigation.js" defer></script>
   <script src="js/cart.js" defer></script>
   <script src="js/products.js" defer></script>
@@ -37,8 +38,9 @@
   <script src="js/main.js" defer></script>
   <script src="js/settings-fold.js" defer></script>
   <script src="js/trader-tools.js" defer></script>
+  <script src="js/schat-bridge.js" defer></script>
 </head>
-<body>
+<body class="trader-layout">
 <div class="background-img" aria-hidden="true">
     <video id="page-bg-video" autoplay muted loop playsinline preload="metadata" tabindex="-1">
       <source src="images/marketplace-background.mp4.mp4" type="video/mp4">
@@ -159,7 +161,7 @@
           <div class="trader-profile-copy">
             <p class="trader-profile-name" id="trader-profile-name">Your account</p>
             <h1 id="dashboard-store-name">Your shop</h1>
-            <span class="verified-badge" id="dashboard-verified" hidden><img class="verified-icon" src="/icons/badge.png" height="33" width="33" alt=""> Verified</span>
+            <span class="verified-badge" id="dashboard-verified" hidden><img class="verified-icon" src="icons/Verification Badge.png" alt=""> Verified trader</span>
             <p class="trader-profile-handle" id="trader-profile-handle"></p>
           </div>
           <button class="outline-button trader-settings-button" type="button" data-page-link="settings" aria-label="Settings" title="Settings">
@@ -168,7 +170,7 @@
           <div class="trader-community-row" aria-label="Community">
             <button class="community-preview" type="button" data-community="following"><strong id="stat-following">0</strong><span>Following</span><small>Shops you follow</small></button>
             <button class="community-preview" type="button" data-community="followers"><strong id="stat-followers">0</strong><span>Followers</span><small>People following you</small></button>
-            <button class="community-preview community-message-preview" type="button" data-open-chat><strong><img src="icons/chat-icon.png" alt="✉" height="35" width="35"></strong><span>Messages</span><small id="chat-status">Coming soon</small></button>
+            <button class="community-preview community-message-preview" type="button" data-open-chat><strong>✉</strong><span>Messages</span><small id="chat-status">Coming soon</small></button>
           </div>
         </div>
         <p class="trader-intro-copy">Manage your shop, track earnings, respond to orders, and keep your products up to date.</p>

@@ -235,6 +235,7 @@ function productDetailHTML(product) {
       <div class="hero-actions">
         <button class="primary-button" type="button" data-add-to-cart="${product.id}" ${available ? "" : "disabled"}>${available ? "Add to bag" : "Sold out"}</button>
         <button class="outline-button" type="button" data-open-store="${escapeHTML(product.trader_username || "")}">Visit shop →</button>
+        ${window.SMP_SCHAT_URL ? `<button class="outline-button" type="button" data-share-product="${Number(product.id)}">💬 Share in chat</button>` : ""}
       </div>
     </div>`;
 }

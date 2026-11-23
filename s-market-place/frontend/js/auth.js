@@ -140,6 +140,7 @@ async function submitAuth(event) {
     renderAccount();
     showToast(result.message);
     loadHome();
+    if (mode === "signup") offerSchatAccount();      // new members: offer an S-Chat account (see schat-bridge.js)
 
     if (currentUser.role === "trader") {
       showPage("trader-dashboard");
